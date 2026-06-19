@@ -29,7 +29,6 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
             token['ward_id'] = user.ward_id
         return token
 
-
 class RegisterSerializer(serializers.ModelSerializer):
     """
     Citizen self-registration.
@@ -45,6 +44,12 @@ class RegisterSerializer(serializers.ModelSerializer):
         allow_null=True
     )
 
+    ward = serializers.PrimaryKeyRelatedField(
+        queryset=Ward.objects.all(),
+        required=False,
+        allow_null=True
+    )
+
     class Meta:
         model = User
         fields = [
@@ -53,6 +58,7 @@ class RegisterSerializer(serializers.ModelSerializer):
             'email',
             'password',
             'profile_picture',
+            'ward',          # ← added
         ]
 
     def validate_phone(self, value):
@@ -68,9 +74,8 @@ class RegisterSerializer(serializers.ModelSerializer):
             password=validated_data['password'],
             name=validated_data['name'],
             email=validated_data.get('email', ''),
-            profile_picture=validated_data.get(
-                'profile_picture'
-            ),
+            profile_picture=validated_data.get('profile_picture'),
+            ward=validated_data.get('ward'),   # ← added
         )
 
 class UserPublicSerializer(serializers.ModelSerializer):
