@@ -66,7 +66,6 @@ class IsWardAccountForIssue(BasePermission):
             and obj.ward == request.user.ward
         )
 
-
 class IsWardAccountForPost(BasePermission):
 
     def has_object_permission(self, request, view, obj):

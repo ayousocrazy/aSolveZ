@@ -26,9 +26,6 @@ from .permissions import (
 )
 
 
-# ---------------------------------------------------------------------------
-# Auth
-# ---------------------------------------------------------------------------
 
 class MyTokenObtainPairView(TokenObtainPairView):
     """
@@ -65,9 +62,6 @@ class MeUpdateView(generics.UpdateAPIView):
         return self.request.user
 
 
-# ---------------------------------------------------------------------------
-# Geography — all read-only, public
-# ---------------------------------------------------------------------------
 
 class ProvinceListView(generics.ListAPIView):
     serializer_class = ProvinceSerializer
@@ -132,10 +126,6 @@ class WardListView(generics.ListAPIView):
             qs = qs.filter(municipality__district__province_id=province_id)
         return qs
 
-
-# ---------------------------------------------------------------------------
-# Issues — citizen facing
-# ---------------------------------------------------------------------------
 
 class IssueListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
@@ -211,10 +201,6 @@ class IssueDetailView(generics.RetrieveDestroyAPIView):
         instance.save()
 
 
-# ---------------------------------------------------------------------------
-# Issues — ward office facing
-# ---------------------------------------------------------------------------
-
 class WardIssueListView(generics.ListAPIView):
     """
     GET /api/ward/issues/
@@ -268,10 +254,6 @@ class WardIssueUpdateView(generics.UpdateAPIView):
         )
 
 
-# ---------------------------------------------------------------------------
-# Comments
-# ---------------------------------------------------------------------------
-
 class CommentListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
@@ -305,10 +287,6 @@ class CommentDestroyView(generics.DestroyAPIView):
         instance.save()
 
 
-# ---------------------------------------------------------------------------
-# Votes
-# ---------------------------------------------------------------------------
-
 class VoteView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -336,9 +314,6 @@ class VoteView(APIView):
         )
 
 
-# ---------------------------------------------------------------------------
-# Reports
-# ---------------------------------------------------------------------------
 
 class ReportView(generics.CreateAPIView):
     """
@@ -366,9 +341,6 @@ class ReportView(generics.CreateAPIView):
             serializer.save(reporter=self.request.user, comment_id=target_id)
 
 
-# ---------------------------------------------------------------------------
-# Ward Posts (announcements / development activities)
-# ---------------------------------------------------------------------------
 
 class WardPostListView(generics.ListAPIView):
     """
@@ -415,9 +387,6 @@ class WardPostDetailView(generics.RetrieveUpdateDestroyAPIView):
         return WardPost.objects.filter(ward=self.request.user.ward)
 
 
-# ---------------------------------------------------------------------------
-# Ward Analytics
-# ---------------------------------------------------------------------------
 
 class WardAnalyticsView(APIView):
     """

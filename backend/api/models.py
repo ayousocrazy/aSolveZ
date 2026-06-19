@@ -2,7 +2,6 @@ from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
 from django.core.validators import FileExtensionValidator
 
-
 # ---------------------------------------------------------------------------
 # Custom manager — phone is the login credential, not email or username
 # ---------------------------------------------------------------------------
@@ -46,10 +45,6 @@ class UserManager(BaseUserManager):
             password,
             **extra_fields
         )
-
-# ---------------------------------------------------------------------------
-# User
-# ---------------------------------------------------------------------------
 
 class User(AbstractUser):
     """
@@ -113,9 +108,6 @@ class User(AbstractUser):
         return self.is_staff and not self.is_superuser
 
 
-# ---------------------------------------------------------------------------
-# Geography
-# ---------------------------------------------------------------------------
 
 class Province(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -218,9 +210,6 @@ class Ward(models.Model):
         return f"{district_slug}-{muni_slug}-ward{self.number}"
 
 
-# ---------------------------------------------------------------------------
-# Issue
-# ---------------------------------------------------------------------------
 
 class Issue(models.Model):
     CATEGORY_CHOICES = [
@@ -321,10 +310,6 @@ class Issue(models.Model):
         return self.comments.filter(is_deleted=False).count()
 
 
-# ---------------------------------------------------------------------------
-# Comment
-# ---------------------------------------------------------------------------
-
 class Comment(models.Model):
     issue = models.ForeignKey(Issue, on_delete=models.CASCADE, related_name='comments')
     author = models.ForeignKey(
@@ -341,9 +326,7 @@ class Comment(models.Model):
         return f"Comment by {self.author} on Issue #{self.issue_id}"
 
 
-# ---------------------------------------------------------------------------
-# Vote  (upvote / downvote on issues)
-# ---------------------------------------------------------------------------
+
 
 class Vote(models.Model):
     VALUE_CHOICES = [(1, 'Upvote'), (-1, 'Downvote')]

@@ -112,7 +112,6 @@ class MeUpdateSerializer(serializers.ModelSerializer):
         model = User
         fields = ['name', 'email', 'profile_picture']
 
-
 # ---------------------------------------------------------------------------
 # Geography
 # ---------------------------------------------------------------------------

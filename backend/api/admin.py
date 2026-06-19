@@ -7,9 +7,6 @@ from .models import (
 )
 
 
-# ---------------------------------------------------------------------------
-# User admin
-# ---------------------------------------------------------------------------
 
 @admin.register(User)
 class CustomUserAdmin(BaseUserAdmin):
@@ -48,9 +45,7 @@ class CustomUserAdmin(BaseUserAdmin):
         return obj.is_staff and not obj.is_superuser
 
 
-# ---------------------------------------------------------------------------
-# Geography
-# ---------------------------------------------------------------------------
+
 
 @admin.register(Province)
 class ProvinceAdmin(admin.ModelAdmin):
@@ -83,9 +78,6 @@ class WardAdmin(admin.ModelAdmin):
         return obj.ward_account_username
 
 
-# ---------------------------------------------------------------------------
-# Issues
-# ---------------------------------------------------------------------------
 
 def soft_delete_issues(modeladmin, request, queryset):
     queryset.update(is_deleted=True)
@@ -109,9 +101,6 @@ class IssueAdmin(admin.ModelAdmin):
         return obj.vote_score
 
 
-# ---------------------------------------------------------------------------
-# Comments
-# ---------------------------------------------------------------------------
 
 def soft_delete_comments(modeladmin, request, queryset):
     queryset.update(is_deleted=True)
@@ -130,19 +119,12 @@ class CommentAdmin(admin.ModelAdmin):
     text_preview.short_description = 'Text'
 
 
-# ---------------------------------------------------------------------------
-# Votes
-# ---------------------------------------------------------------------------
 
 @admin.register(Vote)
 class VoteAdmin(admin.ModelAdmin):
     list_display = ['issue', 'user', 'value']
     list_filter = ['value']
 
-
-# ---------------------------------------------------------------------------
-# Reports
-# ---------------------------------------------------------------------------
 
 def mark_reports_resolved(modeladmin, request, queryset):
     queryset.update(resolved=True)
@@ -173,9 +155,6 @@ class ReportAdmin(admin.ModelAdmin):
     target_link.allow_tags = True
 
 
-# ---------------------------------------------------------------------------
-# Ward Posts
-# ---------------------------------------------------------------------------
 
 @admin.register(WardPost)
 class WardPostAdmin(admin.ModelAdmin):
