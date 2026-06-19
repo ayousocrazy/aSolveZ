@@ -1,28 +1,121 @@
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
+from django.core.validators import FileExtensionValidator
 
+
+# ---------------------------------------------------------------------------
+# Custom manager — phone is the login credential, not email or username
+# ---------------------------------------------------------------------------
+
+class UserManager(BaseUserManager):
+
+    def create_user(self, phone, password=None, **extra_fields):
+        if not phone:
+            raise ValueError("Phone number is required")
+
+        extra_fields.setdefault('is_staff', False)
+        extra_fields.setdefault('is_superuser', False)
+        extra_fields.setdefault('is_moderator', False)
+
+        user = self.model(
+            phone=phone,
+            **extra_fields
+        )
+
+        user.set_password(password)
+        user.save(using=self._db)
+
+        return user
+
+    def create_superuser(self, phone, password, **extra_fields):
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError(
+                'Superuser must have is_staff=True.'
+            )
+
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError(
+                'Superuser must have is_superuser=True.'
+            )
+
+        return self.create_user(
+            phone,
+            password,
+            **extra_fields
+        )
+
+# ---------------------------------------------------------------------------
+# User
+# ---------------------------------------------------------------------------
 
 class User(AbstractUser):
     """
-    Custom user model. Public identity is username only; email is private.
-    is_moderator is ONLY set by superusers via Django admin or shell.
-    ward links the citizen to their specific ward for localised filtering.
+    Custom user model.
+    - Citizens log in with phone + password.
+    - Ward accounts are pre-seeded (is_staff=True, is_superuser=False).
+      Their username follows the pattern: <district>-<municipality>-ward<number>
+      e.g.  kathmandu-kathmandu_metropolitan-ward1
+    - Superusers (is_superuser=True) access the Django admin panel only.
+    - Ward accounts (is_staff=True, is_superuser=False) use the custom ward panel only.
     """
-    email = models.EmailField(unique=True)
-    bio = models.TextField(blank=True, default='')
+
+    # Remove username as a required / login field; keep it for ward account identifiers
+    username = models.CharField(
+        max_length=150,
+        unique=True,
+        blank=True,
+        null=True,
+        help_text="Auto-generated for ward accounts. Leave blank for citizens.",
+    )
+
+    # Primary identity for citizens
+    name = models.CharField(
+        max_length=150,
+        blank=True,
+        default=''
+    )
+    phone = models.CharField(max_length=20, unique=True)
+
+    # Email is optional
+    email = models.EmailField(blank=True, default='')
+
+    # Profile picture (optional for citizens, unused for ward accounts)
+    profile_picture = models.ImageField(
+        upload_to='profile_pictures/', blank=True, null=True
+    )
+
+    # Moderator flag — set only by superusers
     is_moderator = models.BooleanField(default=False)
-    # Citizen's home ward — optional so ward admins / superusers don't need one
+
+    # Ward link — set for ward accounts; optional for citizens
     ward = models.ForeignKey(
         'Ward', on_delete=models.SET_NULL,
         null=True, blank=True, related_name='residents'
     )
 
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username']
+    objects = UserManager()
+
+    USERNAME_FIELD = 'phone'
+    # These are prompted when using createsuperuser; username/email not required
+    REQUIRED_FIELDS = ['name']
 
     def __str__(self):
-        return self.username
+        if self.username:
+            return self.username          # ward account
+        return f"{self.name} ({self.phone})"
 
+    @property
+    def is_ward_account(self):
+        """True for pre-seeded ward office accounts."""
+        return self.is_staff and not self.is_superuser
+
+
+# ---------------------------------------------------------------------------
+# Geography
+# ---------------------------------------------------------------------------
 
 class Province(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -87,6 +180,8 @@ class Ward(models.Model):
     A single numbered ward within a municipality.
     Wards are the smallest administrative unit and the primary scope
     for WardConnect complaints and governance actions.
+
+    Each Ward has exactly one pre-seeded ward account (User with is_staff=True).
     """
     municipality = models.ForeignKey(
         Municipality, on_delete=models.CASCADE, related_name='wards'
@@ -100,7 +195,6 @@ class Ward(models.Model):
     def __str__(self):
         return f"Ward {self.number} — {self.municipality.name}"
 
-    # Convenience properties used by serializers / analytics
     @property
     def district(self):
         return self.municipality.district
@@ -109,6 +203,24 @@ class Ward(models.Model):
     def province(self):
         return self.municipality.district.province
 
+    @property
+    def ward_account_username(self):
+        """
+        Deterministic username for this ward's pre-seeded account.
+        Format: <district_slug>-<municipality_slug>-ward<number>
+        """
+        import re
+        def slugify(s):
+            return re.sub(r'[^a-z0-9]+', '_', s.lower()).strip('_')
+
+        district_slug = slugify(self.municipality.district.name)
+        muni_slug = slugify(self.municipality.name)
+        return f"{district_slug}-{muni_slug}-ward{self.number}"
+
+
+# ---------------------------------------------------------------------------
+# Issue
+# ---------------------------------------------------------------------------
 
 class Issue(models.Model):
     CATEGORY_CHOICES = [
@@ -123,15 +235,15 @@ class Issue(models.Model):
         ('other', 'Other'),
     ]
     STATUS_CHOICES = [
-        ('open', 'Open'),
+        ('pending', 'Pending'),
         ('acknowledged', 'Acknowledged'),
-        ('in_progress', 'In Progress'),
-        ('resolved', 'Resolved'),
+        ('completed', 'Completed'),
     ]
 
-    title = models.CharField(max_length=200)
+    # No title — issues are identified by category + description + location
     description = models.TextField()
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='other')
+
     province = models.ForeignKey(Province, on_delete=models.PROTECT, related_name='issues')
     district = models.ForeignKey(District, on_delete=models.PROTECT, related_name='issues')
     municipality = models.ForeignKey(
@@ -143,11 +255,54 @@ class Issue(models.Model):
         null=True, blank=True
     )
     locality = models.CharField(max_length=200, blank=True, default='')
+
+    # Citizen who submitted
     author = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True, related_name='issues'
     )
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
+
+    # Optional media evidence from citizen
+    image = models.ImageField(upload_to='issue_images/', blank=True, null=True)
+    video = models.FileField(
+        upload_to='issue_videos/',
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=[
+                    'mp4',
+                    'mov',
+                    'avi',
+                    'webm'
+                ]
+            )
+        ],
+        blank=True,
+        null=True
+    )
+
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+
+    # When a ward marks an issue completed they must provide resolution evidence
+    resolution_note = models.TextField(blank=True, default='')
+    resolution_image = models.ImageField(upload_to='resolution_images/', blank=True, null=True)
+    resolution_video = models.FileField(
+        upload_to='resolution_videos/',
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=[
+                    'mp4',
+                    'mov',
+                    'avi',
+                    'webm'
+                ]
+            )
+        ],
+        blank=True,
+        null=True
+    )
+
+    # Soft delete
     is_deleted = models.BooleanField(default=False)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -155,7 +310,7 @@ class Issue(models.Model):
         ordering = ['-created_at']
 
     def __str__(self):
-        return f"[{self.category}] {self.title}"
+        return f"[{self.category}] Issue #{self.pk} — Ward {self.ward}"
 
     @property
     def vote_score(self):
@@ -165,6 +320,10 @@ class Issue(models.Model):
     def comment_count(self):
         return self.comments.filter(is_deleted=False).count()
 
+
+# ---------------------------------------------------------------------------
+# Comment
+# ---------------------------------------------------------------------------
 
 class Comment(models.Model):
     issue = models.ForeignKey(Issue, on_delete=models.CASCADE, related_name='comments')
@@ -182,6 +341,10 @@ class Comment(models.Model):
         return f"Comment by {self.author} on Issue #{self.issue_id}"
 
 
+# ---------------------------------------------------------------------------
+# Vote  (upvote / downvote on issues)
+# ---------------------------------------------------------------------------
+
 class Vote(models.Model):
     VALUE_CHOICES = [(1, 'Upvote'), (-1, 'Downvote')]
 
@@ -197,12 +360,24 @@ class Vote(models.Model):
         return f"{sign}{self.value} by {self.user} on Issue #{self.issue_id}"
 
 
+# ---------------------------------------------------------------------------
+# Report
+# ---------------------------------------------------------------------------
+# Reports serve two purposes:
+#   1. Standard moderation (spam, hate speech, etc.)
+#   2. Re-flagging a completed issue the citizen believes was falsely resolved.
+#      In this case reason='false_resolution' and the related issue is linked.
+#
+# The ward admin reviews all reports against their ward's issues/comments.
+# ---------------------------------------------------------------------------
+
 class Report(models.Model):
     REASON_CHOICES = [
         ('spam', 'Spam'),
         ('hate', 'Hate Speech'),
         ('misinformation', 'Misinformation'),
         ('irrelevant', 'Irrelevant'),
+        ('false_resolution', 'False Resolution'),   # citizen re-flags a completed issue
         ('other', 'Other'),
     ]
 
@@ -229,7 +404,63 @@ class Report(models.Model):
             raise ValidationError("A report must target an issue or a comment.")
         if self.issue and self.comment:
             raise ValidationError("A report cannot target both an issue and a comment.")
+        # false_resolution only makes sense on a completed issue
+        if self.reason == 'false_resolution':
+            if not self.issue:
+                raise ValidationError("false_resolution reports must target an issue.")
+            if self.issue.status != 'completed':
+                raise ValidationError(
+                    "You can only re-flag an issue that has been marked as completed."
+                )
 
     def __str__(self):
         target = f"Issue #{self.issue_id}" if self.issue else f"Comment #{self.comment_id}"
         return f"Report on {target} — {self.reason}"
+
+
+# ---------------------------------------------------------------------------
+# Ward Action / Announcement
+# ---------------------------------------------------------------------------
+# Ward offices can publish positive development posts and announcements.
+# These appear in citizens' ward action feed.
+# ---------------------------------------------------------------------------
+
+class WardPost(models.Model):
+    POST_TYPE_CHOICES = [
+        ('announcement', 'Announcement'),
+        ('project', 'Completed Project'),
+        ('event', 'Community Event'),
+        ('update', 'General Update'),
+    ]
+
+    ward = models.ForeignKey(Ward, on_delete=models.CASCADE, related_name='posts')
+    author = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, related_name='ward_posts'
+    )
+    post_type = models.CharField(max_length=20, choices=POST_TYPE_CHOICES, default='update')
+    title = models.CharField(max_length=200)
+    body = models.TextField()
+    image = models.ImageField(upload_to='ward_post_images/', blank=True, null=True)
+    video = models.FileField(
+        upload_to='ward_post_videos/',
+        validators=[
+            FileExtensionValidator(
+                allowed_extensions=[
+                    'mp4',
+                    'mov',
+                    'avi',
+                    'webm'
+                ]
+            )
+        ],
+        blank=True,
+        null=True
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"[{self.post_type}] {self.title} — Ward {self.ward}"

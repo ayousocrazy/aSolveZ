@@ -1,33 +1,41 @@
 """
-Seed Nepal's 7 provinces, 77 districts, and all 753 local government units (municipalities)
-with their official ward counts as per the Constitution of Nepal 2015 and the
-Local Government Operation Act 2017.
+Seed Nepal's 7 provinces, 77 districts, and all 753 local government units
+with their official ward counts, then create ward accounts for wards 1, 2 and 3
+of every municipality.
 
-Types:
-  metropolitan     — 6 metropolitan cities
-  sub_metropolitan — 11 sub-metropolitan cities
-  municipality     — 276 municipalities
-  rural            — 460 rural municipalities (Gaun Palika)
+Ward account credentials
+------------------------
+  username : <district_slug>-<municipality_slug>-ward<number>
+             e.g.  kathmandu-kathmandu-ward1
+  phone    : 9800<ward_db_id zero-padded to 6 digits>
+             e.g.  9800000001
+  password : same as username
+             e.g.  kathmandu-kathmandu-ward1
 
-Ward counts are the officially gazetted figures from the Election Commission of Nepal.
+Ward accounts have:
+  is_staff     = True   (access to the custom ward panel)
+  is_superuser = False  (no access to Django /admin/)
+  is_moderator = False
+
+Only wards numbered 1, 2, and 3 get accounts. Higher-numbered wards are
+geography-only until the system administrator provisions them manually.
+
+Run:
+    python manage.py seed_locations
+    python manage.py seed_locations --clear          # wipe and re-seed everything
+    python manage.py seed_locations --accounts-only  # re-create ward accounts only
 """
+import re
+import csv
+
 from django.core.management.base import BaseCommand
+from django.contrib.auth import get_user_model
 from api.models import Province, District, Municipality, Ward
 
+User = get_user_model()
 
 # ---------------------------------------------------------------------------
-# Data structure:
-# {
-#   province_number: {
-#     "name": "...",
-#     "districts": {
-#       "District Name": [
-#         ("Municipality Name", "type", ward_count),
-#         ...
-#       ]
-#     }
-#   }
-# }
+# Geography data
 # ---------------------------------------------------------------------------
 
 NEPAL_DATA = {
@@ -453,7 +461,6 @@ NEPAL_DATA = {
                 ("Khairhani", "municipality", 9),
                 ("Rapti", "municipality", 9),
                 ("Madi", "municipality", 9),
-                ("Bharatpur", "metropolitan", 29),
                 ("Ichchhakamana", "rural", 7),
             ],
             "Dhading": [
@@ -519,7 +526,6 @@ NEPAL_DATA = {
                 ("Gorkha", "municipality", 9),
                 ("Palungtar", "municipality", 9),
                 ("Arughat", "rural", 7),
-                ("Aarughat", "rural", 7), 
                 ("Ajirkot", "rural", 7),
                 ("Barpak Sulikot", "rural", 7),
                 ("Bhimsenthapa", "rural", 7),
@@ -956,24 +962,80 @@ NEPAL_DATA = {
 }
 
 
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def slugify(s: str) -> str:
+    """Lower-case alphanumeric slug, spaces → underscores."""
+    return re.sub(r'[^a-z0-9]+', '_', s.lower()).strip('_')
+
+
+def ward_phone(ward_id: int) -> str:
+    """
+    Synthetic phone number for a ward account.
+    Format: 9800<ward_id zero-padded to 6 digits>
+    e.g. ward db-id 1 → 9800000001
+    """
+    return f"9800{ward_id:06d}"
+
+
+# ---------------------------------------------------------------------------
+# Management command
+# ---------------------------------------------------------------------------
+
 class Command(BaseCommand):
-    help = "Seed Nepal provinces, districts, municipalities, and wards"
+    help = (
+        "Seed Nepal provinces, districts, municipalities, wards, "
+        "and create one pre-seeded ward account per ward."
+    )
 
     def add_arguments(self, parser):
         parser.add_argument(
             '--clear',
             action='store_true',
-            help='Delete all existing location data before seeding (use with caution)',
+            help='Delete all existing location data and ward accounts before seeding.',
+        )
+        parser.add_argument(
+            '--accounts-only',
+            action='store_true',
+            help='Skip geography seeding; only create/update ward accounts.',
+        )
+        parser.add_argument(
+            '--output-csv',
+            type=str,
+            default='ward_credentials.csv',
+            help='Path to write ward credential CSV (default: ward_credentials.csv).',
         )
 
     def handle(self, *args, **options):
         if options['clear']:
-            self.stdout.write(self.style.WARNING("Clearing existing location data..."))
+            self.stdout.write(self.style.WARNING("Clearing existing data..."))
+            User.objects.filter(is_staff=True, is_superuser=False).delete()
             Ward.objects.all().delete()
             Municipality.objects.all().delete()
             District.objects.all().delete()
             Province.objects.all().delete()
 
+        if not options['accounts_only']:
+            self._seed_geography()
+
+        credentials = self._seed_ward_accounts(options['output_csv'])
+
+        self.stdout.write(self.style.SUCCESS(
+            f"\n✓ Done.\n"
+            f"  Provinces     : {Province.objects.count()}\n"
+            f"  Districts     : {District.objects.count()}\n"
+            f"  Municipalities: {Municipality.objects.count()}\n"
+            f"  Wards         : {Ward.objects.count()}\n"
+            f"  Ward accounts : {User.objects.filter(is_staff=True, is_superuser=False).count()}\n"
+            f"\n  Credentials written to: {options['output_csv']}\n"
+            f"  ⚠️  Distribute securely. These passwords are shown only once.\n"
+        ))
+
+    # ------------------------------------------------------------------
+
+    def _seed_geography(self):
         total_municipalities = 0
         total_wards = 0
 
@@ -987,17 +1049,15 @@ class Command(BaseCommand):
                 province.save()
 
             self.stdout.write(
-                f"\nProvince {prov_number}: {prov_data['name']} "
-                f"({'created' if p_created else 'updated'})"
+                f"  Province {prov_number}: {prov_data['name']} "
+                f"({'created' if p_created else 'exists'})"
             )
 
             for district_name, municipalities in prov_data["districts"].items():
                 district, _ = District.objects.get_or_create(
-                    name=district_name,
-                    province=province,
+                    name=district_name, province=province,
                 )
 
-                # Deduplicate municipalities within a district (data entry safety)
                 seen = set()
                 for muni_name, muni_type, ward_count in municipalities:
                     key = (muni_name, district.pk)
@@ -1006,12 +1066,10 @@ class Command(BaseCommand):
                     seen.add(key)
 
                     muni, m_created = Municipality.objects.get_or_create(
-                        name=muni_name,
-                        district=district,
+                        name=muni_name, district=district,
                         defaults={"type": muni_type, "ward_count": ward_count},
                     )
                     if not m_created:
-                        # Update type and ward count in case they changed
                         muni.type = muni_type
                         muni.ward_count = ward_count
                         muni.save()
@@ -1019,20 +1077,81 @@ class Command(BaseCommand):
                     if m_created:
                         total_municipalities += 1
 
-                    # Generate individual Ward rows
                     for ward_number in range(1, ward_count + 1):
                         _, w_created = Ward.objects.get_or_create(
-                            municipality=muni,
-                            number=ward_number,
+                            municipality=muni, number=ward_number,
                         )
                         if w_created:
                             total_wards += 1
 
-        self.stdout.write(self.style.SUCCESS(
-            f"\n✓ Seeding complete.\n"
-            f"  Provinces : {Province.objects.count()}\n"
-            f"  Districts : {District.objects.count()}\n"
-            f"  Municipalities : {Municipality.objects.count()} "
-            f"(new: {total_municipalities})\n"
-            f"  Wards : {Ward.objects.count()} (new: {total_wards})\n"
-        ))
+        self.stdout.write(
+            f"\n  Geography: {total_municipalities} new municipalities, "
+            f"{total_wards} new wards.\n"
+        )
+
+    def _seed_ward_accounts(self, csv_path: str):
+        """
+        Create User accounts for wards 1, 2, and 3 of every municipality.
+        Password is set to the same value as the username (plain text shown in CSV).
+        Accounts that already exist are skipped (idempotent).
+        """
+        new_credentials = []
+
+        # Only wards numbered 1, 2, or 3
+        wards = Ward.objects.filter(number__in=[1, 2, 3]).select_related(
+            'municipality__district__province'
+        ).order_by(
+            'municipality__district__province__number',
+            'municipality__district__name',
+            'municipality__name',
+            'number',
+        )
+
+        for ward in wards:
+            username = ward.ward_account_username   # e.g. kathmandu-kathmandu-ward1
+            phone = ward_phone(ward.id)
+            password = username                     # password == username
+
+            if User.objects.filter(username=username).exists():
+                continue   # already seeded; skip
+
+            user = User(
+                phone=phone,
+                username=username,
+                name=f"Ward {ward.number} Office — {ward.municipality.name}",
+                is_staff=True,
+                is_superuser=False,
+                is_moderator=False,
+                ward=ward,
+            )
+            user.set_password(password)
+            user.save()
+
+            new_credentials.append({
+                'province': ward.province.name,
+                'district': ward.district.name,
+                'municipality': ward.municipality.name,
+                'ward_number': ward.number,
+                'username': username,
+                'phone': phone,
+                'password': password,
+            })
+
+        # Write CSV so admins have a record
+        if new_credentials:
+            fieldnames = [
+                'province', 'district', 'municipality',
+                'ward_number', 'username', 'phone', 'password',
+            ]
+            with open(csv_path, 'w', newline='', encoding='utf-8') as f:
+                writer = csv.DictWriter(f, fieldnames=fieldnames)
+                writer.writeheader()
+                writer.writerows(new_credentials)
+            self.stdout.write(
+                f"  {len(new_credentials)} new ward accounts created "
+                f"(wards 1–3 per municipality)."
+            )
+        else:
+            self.stdout.write("  No new ward accounts created (all already exist).")
+
+        return new_credentials

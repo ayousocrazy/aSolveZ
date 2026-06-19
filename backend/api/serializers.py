@@ -1,7 +1,10 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
-from .models import Province, District, Municipality, Ward, Issue, Comment, Vote, Report
+from .models import (
+    Province, District, Municipality, Ward,
+    Issue, Comment, Vote, Report, WardPost,
+)
 
 User = get_user_model()
 
@@ -11,50 +14,85 @@ User = get_user_model()
 # ---------------------------------------------------------------------------
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    """
+    Extends the JWT payload with identity fields so the frontend
+    can branch on citizen vs ward account without a round-trip.
+    """
+
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
-        token['username'] = user.username
+        token['name'] = user.name
         token['is_moderator'] = user.is_moderator
+        token['is_ward_account'] = user.is_ward_account
         if user.ward_id:
             token['ward_id'] = user.ward_id
         return token
 
 
 class RegisterSerializer(serializers.ModelSerializer):
-    password = serializers.CharField(write_only=True, min_length=8)
-    # Accept ward PK; ward implicitly carries municipality → district → province
-    ward = serializers.PrimaryKeyRelatedField(
-        queryset=Ward.objects.select_related('municipality__district__province'),
-        required=True,
+    """
+    Citizen self-registration.
+    Ward accounts are pre-seeded — citizens cannot register as ward staff.
+    """
+    password = serializers.CharField(
+        write_only=True,
+        min_length=8
+    )
+
+    profile_picture = serializers.ImageField(
+        required=False,
+        allow_null=True
     )
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'password', 'bio', 'ward']
+        fields = [
+            'name',
+            'phone',
+            'email',
+            'password',
+            'profile_picture',
+        ]
+
+    def validate_phone(self, value):
+        return (
+            value.strip()
+            .replace(' ', '')
+            .replace('-', '')
+        )
 
     def create(self, validated_data):
         return User.objects.create_user(
-            username=validated_data['username'],
-            email=validated_data['email'],
+            phone=validated_data['phone'],
             password=validated_data['password'],
-            bio=validated_data.get('bio', ''),
-            ward=validated_data.get('ward'),
+            name=validated_data['name'],
+            email=validated_data.get('email', ''),
+            profile_picture=validated_data.get(
+                'profile_picture'
+            ),
         )
 
-
 class UserPublicSerializer(serializers.ModelSerializer):
+    """Minimal public info shown on issues/comments."""
     class Meta:
         model = User
-        fields = ['id', 'username', 'bio', 'date_joined']
+        fields = ['id', 'name', 'profile_picture']
 
 
 class MeSerializer(serializers.ModelSerializer):
+    """Full profile for the authenticated user (/auth/me/)."""
     ward_display = serializers.SerializerMethodField()
+    is_ward_account = serializers.BooleanField(read_only=True)
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'bio', 'is_moderator', 'date_joined', 'ward', 'ward_display']
+        fields = [
+            'id', 'name', 'phone', 'email',
+            'profile_picture', 'is_moderator', 'is_ward_account',
+            'date_joined', 'ward', 'ward_display',
+        ]
+        read_only_fields = ['phone', 'is_moderator', 'is_ward_account', 'date_joined']
 
     def get_ward_display(self, obj):
         if obj.ward:
@@ -66,6 +104,13 @@ class MeSerializer(serializers.ModelSerializer):
                 'province': obj.ward.municipality.district.province.name,
             }
         return None
+
+
+class MeUpdateSerializer(serializers.ModelSerializer):
+    """Citizens may update name, email and profile picture."""
+    class Meta:
+        model = User
+        fields = ['name', 'email', 'profile_picture']
 
 
 # ---------------------------------------------------------------------------
@@ -120,13 +165,20 @@ class WardSerializer(serializers.ModelSerializer):
 # ---------------------------------------------------------------------------
 
 class IssueListSerializer(serializers.ModelSerializer):
-    author_username = serializers.CharField(
-        source='author.username', read_only=True, default='[deleted]'
+    author_name = serializers.CharField(
+        source='author.name', read_only=True, default='[deleted]'
+    )
+    author_profile_picture = serializers.ImageField(
+        source='author.profile_picture', read_only=True
     )
     province_name = serializers.CharField(source='province.name', read_only=True)
     district_name = serializers.CharField(source='district.name', read_only=True)
-    municipality_name = serializers.CharField(source='municipality.name', read_only=True, default=None)
-    ward_number = serializers.IntegerField(source='ward.number', read_only=True, default=None)
+    municipality_name = serializers.CharField(
+        source='municipality.name', read_only=True, default=None
+    )
+    ward_number = serializers.IntegerField(
+        source='ward.number', read_only=True, default=None
+    )
     vote_score = serializers.IntegerField(read_only=True)
     comment_count = serializers.IntegerField(read_only=True)
     user_vote = serializers.SerializerMethodField()
@@ -134,13 +186,16 @@ class IssueListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Issue
         fields = [
-            'id', 'title', 'category',
+            'id', 'category',
             'province', 'province_name',
             'district', 'district_name',
             'municipality', 'municipality_name',
             'ward', 'ward_number',
-            'locality', 'author_username',
-            'status', 'vote_score', 'comment_count', 'user_vote', 'created_at',
+            'locality',
+            'author_name', 'author_profile_picture',
+            'status', 'vote_score', 'comment_count', 'user_vote',
+            'image',
+            'created_at',
         ]
 
     def get_user_vote(self, obj):
@@ -153,15 +208,22 @@ class IssueListSerializer(serializers.ModelSerializer):
 
 class IssueDetailSerializer(IssueListSerializer):
     class Meta(IssueListSerializer.Meta):
-        fields = IssueListSerializer.Meta.fields + ['description', 'updated_at']
+        fields = IssueListSerializer.Meta.fields + [
+            'description', 'video',
+            'resolution_note', 'resolution_image', 'resolution_video',
+            'updated_at',
+        ]
 
 
 class IssueCreateSerializer(serializers.ModelSerializer):
+    """Used by citizens to submit a new complaint."""
+
     class Meta:
         model = Issue
         fields = [
-            'id', 'title', 'description', 'category',
-            'province', 'district', 'municipality', 'ward', 'locality',
+            'id', 'description', 'category',
+            'province', 'district', 'municipality', 'ward',
+            'locality', 'image', 'video',
         ]
 
     def validate(self, data):
@@ -190,9 +252,28 @@ class IssueCreateSerializer(serializers.ModelSerializer):
 
 
 class IssueStatusSerializer(serializers.ModelSerializer):
+    """
+    Used by ward accounts to update status (acknowledge → completed).
+    When marking completed, resolution evidence is required.
+    """
     class Meta:
         model = Issue
-        fields = ['status']
+        fields = [
+            'status',
+            'resolution_note', 'resolution_image', 'resolution_video',
+        ]
+
+    def validate(self, data):
+        status = data.get('status', self.instance.status if self.instance else None)
+        if status == 'completed':
+            # At least a resolution note or image is required
+            note = data.get('resolution_note', '')
+            image = data.get('resolution_image', None)
+            if not note and not image:
+                raise serializers.ValidationError(
+                    "Provide a resolution note or image when marking an issue as completed."
+                )
+        return data
 
 
 # ---------------------------------------------------------------------------
@@ -200,13 +281,16 @@ class IssueStatusSerializer(serializers.ModelSerializer):
 # ---------------------------------------------------------------------------
 
 class CommentSerializer(serializers.ModelSerializer):
-    author_username = serializers.CharField(
-        source='author.username', read_only=True, default='[deleted]'
+    author_name = serializers.CharField(
+        source='author.name', read_only=True, default='[deleted]'
+    )
+    author_profile_picture = serializers.ImageField(
+        source='author.profile_picture', read_only=True
     )
 
     class Meta:
         model = Comment
-        fields = ['id', 'issue', 'author_username', 'text', 'created_at']
+        fields = ['id', 'issue', 'author_name', 'author_profile_picture', 'text', 'created_at']
         read_only_fields = ['issue']
 
 
@@ -222,7 +306,7 @@ class CommentCreateSerializer(serializers.ModelSerializer):
 
 
 # ---------------------------------------------------------------------------
-# Votes & Reports
+# Votes
 # ---------------------------------------------------------------------------
 
 class VoteSerializer(serializers.ModelSerializer):
@@ -231,10 +315,23 @@ class VoteSerializer(serializers.ModelSerializer):
         fields = ['value']
 
 
+# ---------------------------------------------------------------------------
+# Reports
+# ---------------------------------------------------------------------------
+
 class ReportSerializer(serializers.ModelSerializer):
     class Meta:
         model = Report
         fields = ['id', 'reason', 'note']
+
+    def validate_reason(self, value):
+        context = self.context
+        target_type = context.get('target_type')
+        if value == 'false_resolution' and target_type != 'issue':
+            raise serializers.ValidationError(
+                "false_resolution can only be used when reporting an issue."
+            )
+        return value
 
     def create(self, validated_data):
         validated_data['reporter'] = self.context['request'].user
@@ -245,3 +342,46 @@ class ReportSerializer(serializers.ModelSerializer):
         elif target_type == 'comment':
             validated_data['comment_id'] = target_id
         return super().create(validated_data)
+
+
+# ---------------------------------------------------------------------------
+# Ward Posts (announcements, projects, events)
+# ---------------------------------------------------------------------------
+
+class WardPostSerializer(serializers.ModelSerializer):
+    ward_number = serializers.IntegerField(source='ward.number', read_only=True)
+    municipality_name = serializers.CharField(
+        source='ward.municipality.name', read_only=True
+    )
+    post_type_display = serializers.CharField(source='get_post_type_display', read_only=True)
+
+    class Meta:
+        model = WardPost
+        fields = [
+            'id', 'ward', 'ward_number', 'municipality_name',
+            'post_type', 'post_type_display',
+            'title', 'body', 'image', 'video',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = ['ward']
+
+    def create(self, validated_data):
+        # Ward is inferred from the authenticated ward account
+        validated_data['ward'] = self.context['request'].user.ward
+        validated_data['author'] = self.context['request'].user
+        return super().create(validated_data)
+
+
+# ---------------------------------------------------------------------------
+# Ward analytics (for the ward dashboard)
+# ---------------------------------------------------------------------------
+
+class WardAnalyticsSerializer(serializers.Serializer):
+    ward_id = serializers.IntegerField()
+    ward_number = serializers.IntegerField()
+    municipality = serializers.CharField()
+    total_issues = serializers.IntegerField()
+    pending = serializers.IntegerField()
+    acknowledged = serializers.IntegerField()
+    completed = serializers.IntegerField()
+    false_resolution_reports = serializers.IntegerField()

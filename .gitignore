@@ -8,12 +8,18 @@ venv/
 *.egg-info/
 
 # Django
+*.sqlite3
+*.sqlite3-journal
 db.sqlite3
+db.sqlite3-journal
 *.log
 staticfiles/
 migrations/*
 !migrations/__init__.py
 __pycache__
+
+media/*
+!media/.gitkeep
 
 # Node
 node_modules/

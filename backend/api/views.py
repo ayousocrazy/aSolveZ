@@ -1,20 +1,29 @@
-from django.db.models import Sum
+from django.db.models import Sum, Count, Q
 from rest_framework import generics, status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.shortcuts import get_object_or_404
+from rest_framework.parsers import (
+    MultiPartParser,
+    FormParser,
+)
 
-from .models import Province, District, Municipality, Ward, Issue, Comment, Vote, Report
+from .models import Province, District, Municipality, Ward, Issue, Comment, Vote, Report, WardPost
 from .serializers import (
-    MyTokenObtainPairSerializer, RegisterSerializer, MeSerializer,
+    MyTokenObtainPairSerializer,
+    RegisterSerializer, MeSerializer, MeUpdateSerializer,
     ProvinceSerializer, DistrictSerializer, MunicipalitySerializer, WardSerializer,
     IssueListSerializer, IssueDetailSerializer, IssueCreateSerializer, IssueStatusSerializer,
     CommentSerializer, CommentCreateSerializer,
     VoteSerializer, ReportSerializer,
+    WardPostSerializer, WardAnalyticsSerializer,
 )
-from .permissions import IsAuthorOrModerator
+from .permissions import (
+    IsAuthorOrModerator, IsWardAccount,
+    IsWardAccountForIssue, IsWardAccountForPost,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -22,15 +31,21 @@ from .permissions import IsAuthorOrModerator
 # ---------------------------------------------------------------------------
 
 class MyTokenObtainPairView(TokenObtainPairView):
+    """
+    Single login endpoint for both citizens and ward accounts.
+    POST { "phone": "...", "password": "..." }
+    The JWT payload includes is_ward_account so the frontend can branch UI.
+    """
     serializer_class = MyTokenObtainPairSerializer
 
 
 class RegisterView(generics.CreateAPIView):
+    """Citizen self-registration only. Ward accounts are pre-seeded."""
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
 
 
-class MeView(generics.RetrieveUpdateAPIView):
+class MeView(generics.RetrieveAPIView):
     serializer_class = MeSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -38,10 +53,16 @@ class MeView(generics.RetrieveUpdateAPIView):
         return self.request.user
 
 
-@api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
-def me_view(request):
-    return Response(MeSerializer(request.user).data)
+class MeUpdateView(generics.UpdateAPIView):
+    serializer_class = MeUpdateSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    parser_classes = [
+        MultiPartParser,
+        FormParser,
+    ]
+
+    def get_object(self):
+        return self.request.user
 
 
 # ---------------------------------------------------------------------------
@@ -113,11 +134,15 @@ class WardListView(generics.ListAPIView):
 
 
 # ---------------------------------------------------------------------------
-# Issues
+# Issues — citizen facing
 # ---------------------------------------------------------------------------
 
 class IssueListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+    parser_classes = [
+        MultiPartParser,
+        FormParser,
+    ]
 
     def get_serializer_class(self):
         if self.request.method == 'POST':
@@ -134,6 +159,7 @@ class IssueListCreateView(generics.ListCreateAPIView):
         municipality = self.request.query_params.get('municipality')
         ward = self.request.query_params.get('ward')
         category = self.request.query_params.get('category')
+        status_filter = self.request.query_params.get('status')
         sort = self.request.query_params.get('sort', 'new')
 
         if province:
@@ -146,6 +172,8 @@ class IssueListCreateView(generics.ListCreateAPIView):
             qs = qs.filter(ward_id=ward)
         if category:
             qs = qs.filter(category=category)
+        if status_filter:
+            qs = qs.filter(status=status_filter)
 
         if sort == 'top':
             qs = qs.annotate(score=Sum('votes__value')).order_by('-score', '-created_at')
@@ -160,7 +188,7 @@ class IssueListCreateView(generics.ListCreateAPIView):
         return ctx
 
 
-class IssueDetailView(generics.RetrieveUpdateDestroyAPIView):
+class IssueDetailView(generics.RetrieveDestroyAPIView):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsAuthorOrModerator]
 
     def get_serializer_class(self):
@@ -181,6 +209,63 @@ class IssueDetailView(generics.RetrieveUpdateDestroyAPIView):
     def perform_destroy(self, instance):
         instance.is_deleted = True
         instance.save()
+
+
+# ---------------------------------------------------------------------------
+# Issues — ward office facing
+# ---------------------------------------------------------------------------
+
+class WardIssueListView(generics.ListAPIView):
+    """
+    GET /api/ward/issues/
+    Returns all non-deleted issues for the authenticated ward account's ward.
+    Optional filters: ?category=  ?status=  ?sort=top|new
+    """
+    serializer_class = IssueDetailSerializer
+    permission_classes = [IsWardAccount]
+
+    def get_queryset(self):
+        ward = self.request.user.ward
+        qs = Issue.objects.filter(
+            ward=ward, is_deleted=False
+        ).select_related(
+            'author', 'province', 'district', 'municipality', 'ward'
+        ).prefetch_related('votes', 'comments', 'reports')
+
+        category = self.request.query_params.get('category')
+        status_filter = self.request.query_params.get('status')
+        sort = self.request.query_params.get('sort', 'new')
+
+        if category:
+            qs = qs.filter(category=category)
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+
+        if sort == 'top':
+            qs = qs.annotate(score=Sum('votes__value')).order_by('-score', '-created_at')
+        else:
+            qs = qs.order_by('-created_at')
+
+        return qs
+
+
+class WardIssueUpdateView(generics.UpdateAPIView):
+    """
+    PATCH /api/ward/issues/<pk>/
+    Ward account updates the status of an issue and optionally adds
+    resolution evidence when marking it completed.
+    """
+    serializer_class = IssueStatusSerializer
+    permission_classes = [IsWardAccount, IsWardAccountForIssue]
+    parser_classes = [
+        MultiPartParser,
+        FormParser,
+    ]
+
+    def get_queryset(self):
+        return Issue.objects.filter(
+            ward=self.request.user.ward, is_deleted=False
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -256,6 +341,11 @@ class VoteView(APIView):
 # ---------------------------------------------------------------------------
 
 class ReportView(generics.CreateAPIView):
+    """
+    POST /api/report/<target_type>/<target_id>/
+    target_type: 'issue' | 'comment'
+    For re-flagging a falsely completed issue, use reason='false_resolution'.
+    """
     serializer_class = ReportSerializer
     permission_classes = [permissions.IsAuthenticated]
 
@@ -274,3 +364,129 @@ class ReportView(generics.CreateAPIView):
         elif target_type == 'comment':
             get_object_or_404(Comment, pk=target_id)
             serializer.save(reporter=self.request.user, comment_id=target_id)
+
+
+# ---------------------------------------------------------------------------
+# Ward Posts (announcements / development activities)
+# ---------------------------------------------------------------------------
+
+class WardPostListView(generics.ListAPIView):
+    """
+    GET /api/ward-posts/?ward=<id>
+    Public feed of a ward's announcements and project updates.
+    """
+    serializer_class = WardPostSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        qs = WardPost.objects.select_related('ward__municipality__district__province')
+        ward_id = self.request.query_params.get('ward')
+        if ward_id:
+            qs = qs.filter(ward_id=ward_id)
+        return qs
+
+
+class WardPostCreateView(generics.CreateAPIView):
+    """
+    POST /api/ward/posts/
+    Ward accounts publish announcements and development updates.
+    """
+    serializer_class = WardPostSerializer
+    permission_classes = [IsWardAccount]
+    parser_classes = [
+        MultiPartParser,
+        FormParser,
+    ]
+
+
+class WardPostDetailView(generics.RetrieveUpdateDestroyAPIView):
+    """
+    GET/PATCH/DELETE /api/ward/posts/<pk>/
+    Ward accounts manage their own posts.
+    """
+    serializer_class = WardPostSerializer
+    permission_classes = [IsWardAccount, IsWardAccountForPost]
+    parser_classes = [
+        MultiPartParser,
+        FormParser,
+    ]
+
+    def get_queryset(self):
+        return WardPost.objects.filter(ward=self.request.user.ward)
+
+
+# ---------------------------------------------------------------------------
+# Ward Analytics
+# ---------------------------------------------------------------------------
+
+class WardAnalyticsView(APIView):
+    """
+    GET /api/ward/analytics/
+    Returns performance metrics for the authenticated ward account's ward.
+    """
+    permission_classes = [IsWardAccount]
+
+    def get(self, request):
+        ward = request.user.ward
+        issues = Issue.objects.filter(ward=ward, is_deleted=False)
+
+        stats = issues.aggregate(
+            total=Count('id'),
+            pending=Count('id', filter=Q(status='pending')),
+            acknowledged=Count('id', filter=Q(status='acknowledged')),
+            completed=Count('id', filter=Q(status='completed')),
+        )
+
+        false_resolution_reports = Report.objects.filter(
+            issue__ward=ward,
+            reason='false_resolution',
+            resolved=False,
+        ).count()
+
+        data = {
+            'ward_id': ward.id,
+            'ward_number': ward.number,
+            'municipality': ward.municipality.name,
+            'total_issues': stats['total'],
+            'pending': stats['pending'],
+            'acknowledged': stats['acknowledged'],
+            'completed': stats['completed'],
+            'false_resolution_reports': false_resolution_reports,
+        }
+        serializer = WardAnalyticsSerializer(data)
+        return Response(serializer.data)
+
+
+class MunicipalityRankingView(APIView):
+    """
+    GET /api/municipalities/<municipality_id>/ranking/
+    Returns all wards in a municipality ranked by completion rate.
+    Public endpoint — useful for the citizen leaderboard view.
+    """
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, municipality_pk):
+        municipality = get_object_or_404(Municipality, pk=municipality_pk)
+        wards = Ward.objects.filter(municipality=municipality).annotate(
+            total=Count('issues', filter=Q(issues__is_deleted=False)),
+            completed=Count('issues', filter=Q(issues__is_deleted=False, issues__status='completed')),
+            pending=Count('issues', filter=Q(issues__is_deleted=False, issues__status='pending')),
+        )
+
+        ranking = []
+        for ward in wards:
+            rate = (ward.completed / ward.total * 100) if ward.total > 0 else 0
+            ranking.append({
+                'ward_id': ward.id,
+                'ward_number': ward.number,
+                'total_issues': ward.total,
+                'completed': ward.completed,
+                'pending': ward.pending,
+                'completion_rate': round(rate, 1),
+            })
+
+        ranking.sort(key=lambda x: (-x['completion_rate'], -x['completed']))
+        return Response({
+            'municipality': municipality.name,
+            'wards': ranking,
+        })
