@@ -1,10 +1,14 @@
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from django.contrib.auth import get_user_model
-from .models import Province, District, Issue, Comment, Vote, Report
+from .models import Province, District, Municipality, Ward, Issue, Comment, Vote, Report
 
 User = get_user_model()
 
+
+# ---------------------------------------------------------------------------
+# Auth
+# ---------------------------------------------------------------------------
 
 class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
     @classmethod
@@ -12,24 +16,31 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         token = super().get_token(user)
         token['username'] = user.username
         token['is_moderator'] = user.is_moderator
+        if user.ward_id:
+            token['ward_id'] = user.ward_id
         return token
 
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
+    # Accept ward PK; ward implicitly carries municipality → district → province
+    ward = serializers.PrimaryKeyRelatedField(
+        queryset=Ward.objects.select_related('municipality__district__province'),
+        required=True,
+    )
 
     class Meta:
         model = User
-        fields = ['username', 'email', 'password', 'bio']
+        fields = ['username', 'email', 'password', 'bio', 'ward']
 
     def create(self, validated_data):
-        user = User.objects.create_user(
+        return User.objects.create_user(
             username=validated_data['username'],
             email=validated_data['email'],
             password=validated_data['password'],
             bio=validated_data.get('bio', ''),
+            ward=validated_data.get('ward'),
         )
-        return user
 
 
 class UserPublicSerializer(serializers.ModelSerializer):
@@ -39,10 +50,27 @@ class UserPublicSerializer(serializers.ModelSerializer):
 
 
 class MeSerializer(serializers.ModelSerializer):
+    ward_display = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'bio', 'is_moderator', 'date_joined']
+        fields = ['id', 'username', 'email', 'bio', 'is_moderator', 'date_joined', 'ward', 'ward_display']
 
+    def get_ward_display(self, obj):
+        if obj.ward:
+            return {
+                'id': obj.ward.id,
+                'number': obj.ward.number,
+                'municipality': obj.ward.municipality.name,
+                'district': obj.ward.municipality.district.name,
+                'province': obj.ward.municipality.district.province.name,
+            }
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Geography
+# ---------------------------------------------------------------------------
 
 class ProvinceSerializer(serializers.ModelSerializer):
     class Meta:
@@ -58,10 +86,47 @@ class DistrictSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'province', 'province_name']
 
 
+class MunicipalitySerializer(serializers.ModelSerializer):
+    district_name = serializers.CharField(source='district.name', read_only=True)
+    province_name = serializers.CharField(source='district.province.name', read_only=True)
+    type_display = serializers.CharField(source='get_type_display', read_only=True)
+
+    class Meta:
+        model = Municipality
+        fields = [
+            'id', 'name', 'type', 'type_display',
+            'district', 'district_name', 'province_name',
+            'ward_count',
+        ]
+
+
+class WardSerializer(serializers.ModelSerializer):
+    municipality_name = serializers.CharField(source='municipality.name', read_only=True)
+    municipality_type = serializers.CharField(source='municipality.get_type_display', read_only=True)
+    district_name = serializers.CharField(source='municipality.district.name', read_only=True)
+    province_name = serializers.CharField(source='municipality.district.province.name', read_only=True)
+
+    class Meta:
+        model = Ward
+        fields = [
+            'id', 'number',
+            'municipality', 'municipality_name', 'municipality_type',
+            'district_name', 'province_name',
+        ]
+
+
+# ---------------------------------------------------------------------------
+# Issues
+# ---------------------------------------------------------------------------
+
 class IssueListSerializer(serializers.ModelSerializer):
-    author_username = serializers.CharField(source='author.username', read_only=True, default='[deleted]')
+    author_username = serializers.CharField(
+        source='author.username', read_only=True, default='[deleted]'
+    )
     province_name = serializers.CharField(source='province.name', read_only=True)
     district_name = serializers.CharField(source='district.name', read_only=True)
+    municipality_name = serializers.CharField(source='municipality.name', read_only=True, default=None)
+    ward_number = serializers.IntegerField(source='ward.number', read_only=True, default=None)
     vote_score = serializers.IntegerField(read_only=True)
     comment_count = serializers.IntegerField(read_only=True)
     user_vote = serializers.SerializerMethodField()
@@ -69,8 +134,12 @@ class IssueListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Issue
         fields = [
-            'id', 'title', 'category', 'province', 'province_name',
-            'district', 'district_name', 'locality', 'author_username',
+            'id', 'title', 'category',
+            'province', 'province_name',
+            'district', 'district_name',
+            'municipality', 'municipality_name',
+            'ward', 'ward_number',
+            'locality', 'author_username',
             'status', 'vote_score', 'comment_count', 'user_vote', 'created_at',
         ]
 
@@ -90,11 +159,29 @@ class IssueDetailSerializer(IssueListSerializer):
 class IssueCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Issue
-        fields = ['id', 'title', 'description', 'category', 'province', 'district', 'locality']
+        fields = [
+            'id', 'title', 'description', 'category',
+            'province', 'district', 'municipality', 'ward', 'locality',
+        ]
 
     def validate(self, data):
-        if data['district'].province != data['province']:
-            raise serializers.ValidationError("District does not belong to the selected province.")
+        district = data.get('district')
+        province = data.get('province')
+        municipality = data.get('municipality')
+        ward = data.get('ward')
+
+        if district and province and district.province != province:
+            raise serializers.ValidationError(
+                "District does not belong to the selected province."
+            )
+        if municipality and district and municipality.district != district:
+            raise serializers.ValidationError(
+                "Municipality does not belong to the selected district."
+            )
+        if ward and municipality and ward.municipality != municipality:
+            raise serializers.ValidationError(
+                "Ward does not belong to the selected municipality."
+            )
         return data
 
     def create(self, validated_data):
@@ -108,8 +195,14 @@ class IssueStatusSerializer(serializers.ModelSerializer):
         fields = ['status']
 
 
+# ---------------------------------------------------------------------------
+# Comments
+# ---------------------------------------------------------------------------
+
 class CommentSerializer(serializers.ModelSerializer):
-    author_username = serializers.CharField(source='author.username', read_only=True, default='[deleted]')
+    author_username = serializers.CharField(
+        source='author.username', read_only=True, default='[deleted]'
+    )
 
     class Meta:
         model = Comment
@@ -127,6 +220,10 @@ class CommentCreateSerializer(serializers.ModelSerializer):
         validated_data['issue'] = self.context['issue']
         return super().create(validated_data)
 
+
+# ---------------------------------------------------------------------------
+# Votes & Reports
+# ---------------------------------------------------------------------------
 
 class VoteSerializer(serializers.ModelSerializer):
     class Meta:

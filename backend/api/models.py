@@ -1,16 +1,21 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
-from django.core.validators import MinValueValidator, MaxValueValidator
 
 
 class User(AbstractUser):
     """
     Custom user model. Public identity is username only; email is private.
     is_moderator is ONLY set by superusers via Django admin or shell.
+    ward links the citizen to their specific ward for localised filtering.
     """
     email = models.EmailField(unique=True)
     bio = models.TextField(blank=True, default='')
     is_moderator = models.BooleanField(default=False)
+    # Citizen's home ward — optional so ward admins / superusers don't need one
+    ward = models.ForeignKey(
+        'Ward', on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='residents'
+    )
 
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = ['username']
@@ -32,7 +37,9 @@ class Province(models.Model):
 
 class District(models.Model):
     name = models.CharField(max_length=100)
-    province = models.ForeignKey(Province, on_delete=models.CASCADE, related_name='districts')
+    province = models.ForeignKey(
+        Province, on_delete=models.CASCADE, related_name='districts'
+    )
 
     class Meta:
         ordering = ['name']
@@ -40,6 +47,67 @@ class District(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.province.name})"
+
+
+class Municipality(models.Model):
+    """
+    Represents a local government unit inside a district.
+    type distinguishes Metro / Sub-metro / Municipality / Rural Municipality
+    (Gaun Palika) as per Nepal's federal structure.
+    ward_count reflects the officially gazetted number of wards;
+    actual Ward rows are generated from this during seeding.
+    """
+    TYPE_CHOICES = [
+        ('metropolitan', 'Metropolitan City'),
+        ('sub_metropolitan', 'Sub-Metropolitan City'),
+        ('municipality', 'Municipality'),
+        ('rural', 'Rural Municipality (Gaun Palika)'),
+    ]
+
+    name = models.CharField(max_length=150)
+    district = models.ForeignKey(
+        District, on_delete=models.CASCADE, related_name='municipalities'
+    )
+    type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='municipality')
+    ward_count = models.PositiveSmallIntegerField(
+        help_text="Official number of wards in this local government unit."
+    )
+
+    class Meta:
+        ordering = ['name']
+        unique_together = [('name', 'district')]
+        verbose_name_plural = 'Municipalities'
+
+    def __str__(self):
+        return f"{self.name} ({self.get_type_display()}) — {self.district.name}"
+
+
+class Ward(models.Model):
+    """
+    A single numbered ward within a municipality.
+    Wards are the smallest administrative unit and the primary scope
+    for WardConnect complaints and governance actions.
+    """
+    municipality = models.ForeignKey(
+        Municipality, on_delete=models.CASCADE, related_name='wards'
+    )
+    number = models.PositiveSmallIntegerField()
+
+    class Meta:
+        ordering = ['municipality', 'number']
+        unique_together = [('municipality', 'number')]
+
+    def __str__(self):
+        return f"Ward {self.number} — {self.municipality.name}"
+
+    # Convenience properties used by serializers / analytics
+    @property
+    def district(self):
+        return self.municipality.district
+
+    @property
+    def province(self):
+        return self.municipality.district.province
 
 
 class Issue(models.Model):
@@ -66,8 +134,18 @@ class Issue(models.Model):
     category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='other')
     province = models.ForeignKey(Province, on_delete=models.PROTECT, related_name='issues')
     district = models.ForeignKey(District, on_delete=models.PROTECT, related_name='issues')
+    municipality = models.ForeignKey(
+        Municipality, on_delete=models.PROTECT, related_name='issues',
+        null=True, blank=True
+    )
+    ward = models.ForeignKey(
+        Ward, on_delete=models.PROTECT, related_name='issues',
+        null=True, blank=True
+    )
     locality = models.CharField(max_length=200, blank=True, default='')
-    author = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='issues')
+    author = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, related_name='issues'
+    )
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='open')
     is_deleted = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -90,7 +168,9 @@ class Issue(models.Model):
 
 class Comment(models.Model):
     issue = models.ForeignKey(Issue, on_delete=models.CASCADE, related_name='comments')
-    author = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='comments')
+    author = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, related_name='comments'
+    )
     text = models.TextField()
     is_deleted = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -113,7 +193,8 @@ class Vote(models.Model):
         unique_together = [('issue', 'user')]
 
     def __str__(self):
-        return f"{'+' if self.value > 0 else ''}{self.value} by {self.user} on Issue #{self.issue_id}"
+        sign = '+' if self.value > 0 else ''
+        return f"{sign}{self.value} by {self.user} on Issue #{self.issue_id}"
 
 
 class Report(models.Model):
@@ -125,9 +206,15 @@ class Report(models.Model):
         ('other', 'Other'),
     ]
 
-    issue = models.ForeignKey(Issue, on_delete=models.CASCADE, related_name='reports', null=True, blank=True)
-    comment = models.ForeignKey(Comment, on_delete=models.CASCADE, related_name='reports', null=True, blank=True)
-    reporter = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='reports_filed')
+    issue = models.ForeignKey(
+        Issue, on_delete=models.CASCADE, related_name='reports', null=True, blank=True
+    )
+    comment = models.ForeignKey(
+        Comment, on_delete=models.CASCADE, related_name='reports', null=True, blank=True
+    )
+    reporter = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, related_name='reports_filed'
+    )
     reason = models.CharField(max_length=20, choices=REASON_CHOICES)
     note = models.TextField(blank=True, default='')
     resolved = models.BooleanField(default=False)

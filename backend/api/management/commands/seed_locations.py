@@ -1,92 +1,1044 @@
 """
-Seed Nepal's 7 provinces and 77 districts.
-Source: Government of Nepal, Ministry of Federal Affairs and General Administration.
-Province names are official names as gazetted.
+Seed Nepal's 7 provinces, 77 districts, and all 753 local government units (municipalities)
+with their official ward counts as per the Constitution of Nepal 2015 and the
+Local Government Operation Act 2017.
+
+Types:
+  metropolitan     — 6 metropolitan cities
+  sub_metropolitan — 11 sub-metropolitan cities
+  municipality     — 276 municipalities
+  rural            — 460 rural municipalities (Gaun Palika)
+
+Ward counts are the officially gazetted figures from the Election Commission of Nepal.
 """
 from django.core.management.base import BaseCommand
-from api.models import Province, District
+from api.models import Province, District, Municipality, Ward
+
+
+# ---------------------------------------------------------------------------
+# Data structure:
+# {
+#   province_number: {
+#     "name": "...",
+#     "districts": {
+#       "District Name": [
+#         ("Municipality Name", "type", ward_count),
+#         ...
+#       ]
+#     }
+#   }
+# }
+# ---------------------------------------------------------------------------
 
 NEPAL_DATA = {
     1: {
         "name": "Koshi",
-        "districts": [
-            "Bhojpur", "Dhankuta", "Ilam", "Jhapa", "Khotang",
-            "Morang", "Okhaldhunga", "Panchthar", "Sankhuwasabha",
-            "Solukhumbu", "Sunsari", "Taplejung", "Terhathum", "Udayapur",
-        ],
+        "districts": {
+            "Taplejung": [
+                ("Taplejung", "municipality", 9),
+                ("Phungling", "municipality", 9),
+                ("Sidingwa", "rural", 8),
+                ("Mikwakhola", "rural", 6),
+                ("Meringden", "rural", 6),
+                ("Phaktanglung", "rural", 7),
+                ("Pathivara Yangwarak", "rural", 8),
+                ("Sirijangha", "rural", 8),
+                ("Maiwakhola", "rural", 6),
+            ],
+            "Panchthar": [
+                ("Phidim", "municipality", 9),
+                ("Hilihang", "rural", 7),
+                ("Kummayak", "rural", 6),
+                ("Miklajung", "rural", 6),
+                ("Falgunanda", "rural", 8),
+                ("Tumbewa", "rural", 6),
+                ("Yangwarak", "rural", 6),
+            ],
+            "Ilam": [
+                ("Ilam", "municipality", 9),
+                ("Deumai", "municipality", 9),
+                ("Mai", "municipality", 9),
+                ("Suryodaya", "municipality", 13),
+                ("Chulachuli", "rural", 8),
+                ("Fakphokthum", "rural", 6),
+                ("Maijogmai", "rural", 8),
+                ("Mangsebung", "rural", 8),
+                ("Rong", "rural", 6),
+                ("Sandakpur", "rural", 6),
+            ],
+            "Jhapa": [
+                ("Birtamod", "municipality", 9),
+                ("Mechinagar", "municipality", 9),
+                ("Bhadrapur", "municipality", 9),
+                ("Damak", "municipality", 9),
+                ("Kankai", "municipality", 9),
+                ("Shivasatakshi", "municipality", 9),
+                ("Arjundhara", "municipality", 9),
+                ("Gauradaha", "municipality", 9),
+                ("Haldibari", "rural", 8),
+                ("Jhapa", "rural", 8),
+                ("Kachankawal", "rural", 8),
+                ("Kamal", "rural", 8),
+                ("Buddhashanti", "rural", 9),
+                ("Barhadashi", "rural", 8),
+            ],
+            "Morang": [
+                ("Biratnagar", "metropolitan", 19),
+                ("Urlabari", "municipality", 9),
+                ("Letang", "municipality", 9),
+                ("Sundarharaicha", "municipality", 9),
+                ("Rangeli", "municipality", 9),
+                ("Belbari", "municipality", 9),
+                ("Pathari Shanischare", "municipality", 9),
+                ("Ratuwamai", "municipality", 9),
+                ("Budhiganga", "rural", 7),
+                ("Dhanpalthan", "rural", 7),
+                ("Gramthan", "rural", 8),
+                ("Jahada", "rural", 8),
+                ("Kanepokhari", "rural", 8),
+                ("Kerabari", "rural", 7),
+                ("Miklajung", "rural", 6),
+                ("Sunawarshi", "rural", 7),
+                ("Toksel", "rural", 6),
+            ],
+            "Sunsari": [
+                ("Dharan", "sub_metropolitan", 19),
+                ("Inaruwa", "municipality", 9),
+                ("Duhabi", "municipality", 9),
+                ("Itahari", "sub_metropolitan", 11),
+                ("Barahkshetra", "municipality", 9),
+                ("Ramdhuni", "municipality", 9),
+                ("Bhokraha Narsingh", "rural", 7),
+                ("Dewanganj", "rural", 7),
+                ("Gadhi", "rural", 6),
+                ("Harinagar", "rural", 7),
+                ("Koshi", "rural", 7),
+            ],
+            "Dhankuta": [
+                ("Dhankuta", "municipality", 9),
+                ("Pakhribas", "municipality", 9),
+                ("Sahidbhumi", "rural", 7),
+                ("Chhathar Jorpati", "rural", 6),
+                ("Mahalaxmi", "rural", 6),
+                ("Sangurigadhi", "rural", 6),
+                ("Chaubise", "rural", 6),
+            ],
+            "Terhathum": [
+                ("Myanglung", "municipality", 9),
+                ("Laligurans", "rural", 7),
+                ("Aathrai Tribeni", "rural", 6),
+                ("Chhathar", "rural", 6),
+                ("Fedap", "rural", 6),
+                ("Phedap", "rural", 7),
+            ],
+            "Sankhuwasabha": [
+                ("Khandbari", "municipality", 9),
+                ("Chainpur", "municipality", 9),
+                ("Dharmadevi", "municipality", 9),
+                ("Panchkhapan", "municipality", 9),
+                ("Madi", "rural", 6),
+                ("Bhotkhola", "rural", 5),
+                ("Chichila", "rural", 6),
+                ("Makalu", "rural", 6),
+                ("Sabhapokhari", "rural", 6),
+                ("Silichong", "rural", 5),
+            ],
+            "Bhojpur": [
+                ("Bhojpur", "municipality", 9),
+                ("Shadananda", "municipality", 9),
+                ("Arun", "rural", 6),
+                ("Pauwadungma", "rural", 6),
+                ("Hatuwagadhi", "rural", 6),
+                ("Ramprasad Rai", "rural", 6),
+                ("Salpasilichho", "rural", 7),
+                ("Tyamke Yuwa", "rural", 6),
+            ],
+            "Solukhumbu": [
+                ("Solu Dudhkunda", "municipality", 9),
+                ("Thulung Dudhkoshi", "rural", 7),
+                ("Dudhkoshi", "rural", 7),
+                ("Khumbupasanglahmu", "rural", 5),
+                ("Likhupike", "rural", 6),
+                ("Mahakulung", "rural", 8),
+                ("Mapya Dudhkoshi", "rural", 5),
+                ("Sotang", "rural", 7),
+            ],
+            "Okhaldhunga": [
+                ("Siddhicharan", "municipality", 9),
+                ("Molung", "rural", 7),
+                ("Champadevi", "rural", 6),
+                ("Chisankhugadhi", "rural", 7),
+                ("Khijidemba", "rural", 7),
+                ("Likhu", "rural", 6),
+                ("Manebhanjyang", "rural", 6),
+                ("Sunkoshi", "rural", 6),
+            ],
+            "Khotang": [
+                ("Diktel Rupakot Majhuwagadhi", "municipality", 9),
+                ("Halesi Tuwachung", "municipality", 9),
+                ("Aiselukharka", "rural", 7),
+                ("Barahapokhari", "rural", 6),
+                ("Diprung Chuichumma", "rural", 6),
+                ("Jantedhunga", "rural", 7),
+                ("Kepilasgadhi", "rural", 7),
+                ("Khotehang", "rural", 6),
+                ("Lamidanda", "rural", 8),
+                ("Rawabesi", "rural", 7),
+                ("Sakela", "rural", 7),
+            ],
+            "Udayapur": [
+                ("Triyuga", "municipality", 14),
+                ("Katari", "municipality", 9),
+                ("Belaka", "municipality", 9),
+                ("Udayapurgadhi", "rural", 7),
+                ("Chaudandigadhi", "municipality", 9),
+                ("Rautamai", "rural", 7),
+                ("Tapli", "rural", 6),
+            ],
+        },
     },
     2: {
         "name": "Madhesh",
-        "districts": [
-            "Bara", "Dhanusha", "Mahottari", "Parsa", "Rautahat",
-            "Saptari", "Sarlahi", "Siraha",
-        ],
+        "districts": {
+            "Saptari": [
+                ("Rajbiraj", "municipality", 9),
+                ("Kanchanrup", "municipality", 9),
+                ("Saptakoshi", "municipality", 9),
+                ("Shambhunath", "municipality", 9),
+                ("Surunga", "municipality", 9),
+                ("Agnisair Krishna Savaran", "rural", 7),
+                ("Balan Bihul", "rural", 7),
+                ("Bishnupur", "rural", 6),
+                ("Chhinnamasta", "rural", 6),
+                ("Dakneshwori", "rural", 6),
+                ("Hanumannagar Kankalini", "municipality", 9),
+                ("Mahadeva", "rural", 6),
+                ("Rupani", "rural", 6),
+                ("Tirahut", "rural", 6),
+            ],
+            "Siraha": [
+                ("Siraha", "municipality", 9),
+                ("Lahan", "municipality", 9),
+                ("Dhangadhimai", "municipality", 9),
+                ("Golbazar", "municipality", 9),
+                ("Mirchaiya", "municipality", 9),
+                ("Sukhipur", "municipality", 9),
+                ("Arnama", "rural", 6),
+                ("Bariyarpatti", "rural", 6),
+                ("Bhagawanpur", "rural", 6),
+                ("Bishnupur", "rural", 7),
+                ("Karjanha", "rural", 6),
+                ("Laxmipur Patari", "rural", 7),
+                ("Naraha", "rural", 6),
+                ("Sakhuwanankarkatti", "rural", 7),
+            ],
+            "Dhanusha": [
+                ("Janakpurdham", "sub_metropolitan", 11),
+                ("Chhireshwornath", "municipality", 9),
+                ("Dhanusadham", "municipality", 9),
+                ("Ganeshman Charnath", "municipality", 9),
+                ("Hansapur", "municipality", 9),
+                ("Kamala", "municipality", 9),
+                ("Mithila", "municipality", 9),
+                ("Mithila Bihari", "municipality", 9),
+                ("Nagarain", "municipality", 9),
+                ("Sabaila", "municipality", 9),
+                ("Aurahi", "rural", 6),
+                ("Bateshwar", "rural", 6),
+                ("Bideha", "rural", 6),
+                ("Dhanauji", "rural", 7),
+                ("Janaknandini", "rural", 5),
+                ("Lakshminiya", "rural", 6),
+                ("Mukhiyapatti Musharnia", "rural", 6),
+                ("Shankarpur", "rural", 6),
+                ("Vijayapur", "rural", 7),
+            ],
+            "Mahottari": [
+                ("Jaleshwar", "municipality", 9),
+                ("Bardibas", "municipality", 9),
+                ("Gaushala", "municipality", 9),
+                ("Loharpatti", "municipality", 9),
+                ("Manara Shiswa", "municipality", 9),
+                ("Matihani", "municipality", 9),
+                ("Ramgopalpur", "municipality", 9),
+                ("Aurahi", "rural", 6),
+                ("Balawa", "rural", 6),
+                ("Bhangaha", "rural", 7),
+                ("Ekdara", "rural", 7),
+                ("Mahottari", "rural", 7),
+                ("Pipra", "rural", 7),
+                ("Samsi", "rural", 6),
+                ("Sonama", "rural", 7),
+            ],
+            "Sarlahi": [
+                ("Malangwa", "municipality", 9),
+                ("Barahathwa", "municipality", 9),
+                ("Godaita", "municipality", 9),
+                ("Haripur", "municipality", 9),
+                ("Harion", "municipality", 9),
+                ("Ishworpur", "municipality", 9),
+                ("Kabilasi", "municipality", 9),
+                ("Lalbandi", "municipality", 9),
+                ("Bagmati", "rural", 7),
+                ("Basbariya", "rural", 6),
+                ("Bishnu", "rural", 6),
+                ("Bramhapuri", "rural", 6),
+                ("Chakraghatta", "rural", 6),
+                ("Chandranagar", "rural", 6),
+                ("Dhangadhimai", "rural", 6),
+                ("Haripurwa", "rural", 6),
+                ("Karmaiya", "rural", 6),
+                ("Parsa", "rural", 6),
+                ("Ramnagar", "rural", 7),
+            ],
+            "Rautahat": [
+                ("Gaur", "municipality", 9),
+                ("Baudhimai", "municipality", 9),
+                ("Brindaban", "municipality", 9),
+                ("Chandrapur", "municipality", 9),
+                ("Devahi Gonahi", "municipality", 9),
+                ("Durga Bhagwati", "municipality", 9),
+                ("Garuda", "municipality", 9),
+                ("Gadhimai", "municipality", 9),
+                ("Gujara", "municipality", 9),
+                ("Ishanath", "municipality", 9),
+                ("Katahariya", "municipality", 9),
+                ("Madhav Narayan", "municipality", 9),
+                ("Maulapur", "municipality", 9),
+                ("Paroha", "municipality", 9),
+                ("Phatuwa Bijayapur", "municipality", 9),
+                ("Rajdevi", "municipality", 9),
+                ("Rajpur", "municipality", 9),
+                ("Yamunamai", "municipality", 9),
+                ("Dewahhi Gonahi", "rural", 7),
+            ],
+            "Bara": [
+                ("Kalaiya", "sub_metropolitan", 11),
+                ("Jitpur Simara", "sub_metropolitan", 11),
+                ("Kolhabi", "municipality", 9),
+                ("Nijgadh", "municipality", 9),
+                ("Mahagadhimai", "municipality", 9),
+                ("Pacharauta", "municipality", 9),
+                ("Pheta", "municipality", 9),
+                ("Prasauni", "municipality", 9),
+                ("Simraungadh", "municipality", 9),
+                ("Adarshakotwal", "rural", 7),
+                ("Devtal", "rural", 6),
+                ("Dharmapur", "rural", 7),
+                ("Karaiyamai", "rural", 7),
+                ("Suwarna", "rural", 6),
+                ("Vivaha Chandrapur", "rural", 6),
+            ],
+            "Parsa": [
+                ("Birgunj", "sub_metropolitan", 19),
+                ("Bahudaramai", "municipality", 9),
+                ("Bindabasini", "municipality", 9),
+                ("Dhobini", "municipality", 9),
+                ("Jagarnathpur", "municipality", 9),
+                ("Kalikamai", "municipality", 9),
+                ("Pakaha Mainpur", "municipality", 9),
+                ("Parsagadhi", "municipality", 9),
+                ("Paterwa Sugauli", "municipality", 9),
+                ("Pokhariya", "municipality", 9),
+                ("Thori", "rural", 5),
+                ("Chhipaharmai", "rural", 7),
+                ("Jirabhawani", "rural", 6),
+                ("Paterwasugauli", "rural", 6),
+                ("Sakhuwa Prasauni", "rural", 6),
+            ],
+        },
     },
     3: {
         "name": "Bagmati",
-        "districts": [
-            "Bhaktapur", "Chitwan", "Dhading", "Dolakha", "Kathmandu",
-            "Kavrepalanchok", "Lalitpur", "Makwanpur", "Nuwakot",
-            "Ramechhap", "Rasuwa", "Sindhuli", "Sindhupalchok",
-        ],
+        "districts": {
+            "Kathmandu": [
+                ("Kathmandu", "metropolitan", 32),
+                ("Kirtipur", "municipality", 10),
+                ("Shankharapur", "municipality", 9),
+                ("Kageshwari Manohara", "municipality", 9),
+                ("Gokarneshwar", "municipality", 9),
+                ("Tarakeshwar", "municipality", 9),
+                ("Budhanilkantha", "municipality", 9),
+                ("Nagarjun", "municipality", 9),
+                ("Tokha", "municipality", 9),
+                ("Chandragiri", "municipality", 9),
+                ("Dakshinkali", "municipality", 9),
+                ("Konjyosom", "rural", 5),
+            ],
+            "Bhaktapur": [
+                ("Bhaktapur", "municipality", 10),
+                ("Madhyapur Thimi", "municipality", 9),
+                ("Changunarayan", "municipality", 9),
+                ("Suryabinayak", "municipality", 9),
+            ],
+            "Lalitpur": [
+                ("Lalitpur", "metropolitan", 29),
+                ("Godawari", "municipality", 14),
+                ("Mahalaxmi", "municipality", 10),
+                ("Bagmati", "rural", 7),
+                ("Konjyosom", "rural", 5),
+            ],
+            "Kavrepalanchok": [
+                ("Banepa", "municipality", 9),
+                ("Dhulikhel", "municipality", 9),
+                ("Panauti", "municipality", 9),
+                ("Panchkhal", "municipality", 9),
+                ("Mandandeupur", "municipality", 9),
+                ("Namobuddha", "municipality", 9),
+                ("Bethanchok", "rural", 7),
+                ("Bhumlu", "rural", 7),
+                ("Chaurideurali", "rural", 7),
+                ("Khanikhola", "rural", 7),
+                ("Mahabharat", "rural", 6),
+                ("Roshi", "rural", 7),
+                ("Temal", "rural", 7),
+            ],
+            "Sindhupalchok": [
+                ("Chautara Sangachowkgadhi", "municipality", 9),
+                ("Melamchi", "municipality", 9),
+                ("Balephi", "rural", 7),
+                ("Bhotekoshi", "rural", 6),
+                ("Helambu", "rural", 7),
+                ("Indrwati", "rural", 7),
+                ("Jugal", "rural", 7),
+                ("Larjung", "rural", 5),
+                ("Lisankhu Pakhar", "rural", 6),
+                ("Panchpokhari Thangpal", "rural", 7),
+                ("Sunkoshi", "rural", 6),
+                ("Tripura Sundari", "rural", 7),
+                ("Thakani", "rural", 6),
+            ],
+            "Dolakha": [
+                ("Bhimeshwar", "municipality", 9),
+                ("Jiri", "municipality", 9),
+                ("Gaurishankar", "rural", 9),
+                ("Baiteshwar", "rural", 6),
+                ("Bigu", "rural", 7),
+                ("Kalinchok", "rural", 7),
+                ("Melung", "rural", 6),
+                ("Sailung", "rural", 7),
+                ("Tamakoshi", "rural", 7),
+            ],
+            "Ramechhap": [
+                ("Manthali", "municipality", 9),
+                ("Ramechhap", "municipality", 9),
+                ("Doramba", "rural", 7),
+                ("Gokulganga", "rural", 7),
+                ("Khandadevi", "rural", 7),
+                ("Likhutamakoshi", "rural", 7),
+                ("Sunapati", "rural", 7),
+                ("Umakunda", "rural", 6),
+            ],
+            "Sindhuli": [
+                ("Kamalamai", "municipality", 9),
+                ("Dudhauli", "municipality", 9),
+                ("Golanjor", "rural", 7),
+                ("Hariharpurgadhi", "rural", 6),
+                ("Marin", "rural", 8),
+                ("Phikkal", "rural", 6),
+                ("Sunkoshi", "rural", 6),
+                ("Tinpatan", "rural", 7),
+            ],
+            "Makwanpur": [
+                ("Hetauda", "sub_metropolitan", 15),
+                ("Thaha", "municipality", 9),
+                ("Bhimphedi", "rural", 7),
+                ("Bagmati", "rural", 7),
+                ("Bakaiya", "rural", 7),
+                ("Indrasarowar", "rural", 5),
+                ("Kailash", "rural", 7),
+                ("Manahari", "rural", 7),
+                ("Raksirang", "rural", 7),
+            ],
+            "Chitwan": [
+                ("Bharatpur", "metropolitan", 29),
+                ("Ratnanagar", "municipality", 9),
+                ("Khairhani", "municipality", 9),
+                ("Rapti", "municipality", 9),
+                ("Madi", "municipality", 9),
+                ("Bharatpur", "metropolitan", 29),
+                ("Ichchhakamana", "rural", 7),
+            ],
+            "Dhading": [
+                ("Nilkantha", "municipality", 10),
+                ("Dhunibesi", "municipality", 9),
+                ("Benighat Rorang", "rural", 8),
+                ("Gajuri", "rural", 7),
+                ("Galchhi", "rural", 7),
+                ("Gangajamuna", "rural", 6),
+                ("Jwalamukhi", "rural", 7),
+                ("Khaniyabas", "rural", 7),
+                ("Netrawati Dabjong", "rural", 7),
+                ("Rubi Valley", "rural", 6),
+                ("Siddhalek", "rural", 7),
+                ("Tripura Sundari", "rural", 7),
+            ],
+            "Nuwakot": [
+                ("Bidur", "municipality", 9),
+                ("Belkotgadhi", "municipality", 9),
+                ("Tadi", "rural", 6),
+                ("Dupcheshwar", "rural", 7),
+                ("Kispang", "rural", 7),
+                ("Likhu Gaun", "rural", 6),
+                ("Meghang", "rural", 6),
+                ("Myagang", "rural", 7),
+                ("Panchakanya", "rural", 7),
+                ("Shivapuri", "rural", 7),
+                ("Suryagadhi", "rural", 7),
+                ("Tarkeshwar", "rural", 7),
+            ],
+            "Rasuwa": [
+                ("Uttargaya", "rural", 5),
+                ("Amachodingmo", "rural", 5),
+                ("Gosaikunda", "rural", 6),
+                ("Kalika", "rural", 5),
+                ("Naukunda", "rural", 5),
+            ],
+        },
     },
     4: {
         "name": "Gandaki",
-        "districts": [
-            "Baglung", "Gorkha", "Kaski", "Lamjung", "Manang",
-            "Mustang", "Myagdi", "Nawalpur", "Parbat", "Syangja", "Tanahun",
-        ],
+        "districts": {
+            "Kaski": [
+                ("Pokhara", "metropolitan", 33),
+                ("Annapurna", "rural", 7),
+                ("Machhapuchchhre", "rural", 6),
+                ("Madi", "rural", 6),
+                ("Rupa", "rural", 7),
+            ],
+            "Tanahun": [
+                ("Bhimad", "municipality", 9),
+                ("Byas", "municipality", 9),
+                ("Shuklagandaki", "municipality", 9),
+                ("Vyasnarasingh", "municipality", 9),
+                ("Anbukhaireni", "rural", 7),
+                ("Bandipur", "rural", 7),
+                ("Devghat", "rural", 7),
+                ("Ghiring", "rural", 7),
+                ("Myagde", "rural", 7),
+                ("Rhishing", "rural", 7),
+                ("Риши", "rural", 7),
+            ],
+            "Gorkha": [
+                ("Gorkha", "municipality", 9),
+                ("Palungtar", "municipality", 9),
+                ("Arughat", "rural", 7),
+                ("Arpak Tanahu", "rural", 7),
+                ("Ajirkot", "rural", 7),
+                ("Barpak Sulikot", "rural", 7),
+                ("Bhimsenthapa", "rural", 7),
+                ("Chumnubre", "rural", 6),
+                ("Dharche", "rural", 7),
+                ("Gandaki", "rural", 7),
+                ("Kerauja", "rural", 7),
+                ("Sahid Lakhan", "rural", 7),
+                ("Siranchok", "rural", 9),
+                ("Tsum Nubri", "rural", 6),
+            ],
+            "Lamjung": [
+                ("Besishahar", "municipality", 9),
+                ("Madhya Nepal", "municipality", 9),
+                ("Sundarbazar", "municipality", 9),
+                ("Dordi", "rural", 6),
+                ("Dudhpokhari", "rural", 6),
+                ("Kwholasothar", "rural", 6),
+                ("Marsyangdi", "rural", 7),
+                ("Rainas", "rural", 7),
+            ],
+            "Syangja": [
+                ("Putalibazar", "municipality", 9),
+                ("Waling", "municipality", 9),
+                ("Biruwa", "municipality", 9),
+                ("Galyang", "municipality", 9),
+                ("Chapakot", "municipality", 9),
+                ("Bhirkot", "municipality", 9),
+                ("Arjunchaupari", "rural", 7),
+                ("Aandhikhola", "rural", 7),
+                ("Harinas", "rural", 6),
+                ("Kaligandaki", "rural", 7),
+                ("Phedikhola", "rural", 7),
+            ],
+            "Parbat": [
+                ("Kushma", "municipality", 9),
+                ("Phalewas", "municipality", 9),
+                ("Bihadi", "rural", 6),
+                ("Jaljala", "rural", 7),
+                ("Mahashila", "rural", 6),
+                ("Modi", "rural", 6),
+                ("Painyu", "rural", 7),
+            ],
+            "Baglung": [
+                ("Baglung", "municipality", 9),
+                ("Jaimuni", "municipality", 9),
+                ("Dhorpatan", "municipality", 9),
+                ("Badigad", "rural", 7),
+                ("Bareng", "rural", 6),
+                ("Galkot", "rural", 7),
+                ("Kanthekhola", "rural", 6),
+                ("Nisikhola", "rural", 7),
+                ("Taman Khola", "rural", 6),
+                ("Tarakhola", "rural", 6),
+            ],
+            "Myagdi": [
+                ("Beni", "municipality", 9),
+                ("Annapurna", "rural", 7),
+                ("Dhawalagiri", "rural", 5),
+                ("Mangala", "rural", 6),
+                ("Malika", "rural", 6),
+                ("Raghuganga", "rural", 8),
+            ],
+            "Mustang": [
+                ("Mustang", "rural", 5),
+                ("Dalome", "rural", 5),
+                ("Gharapjhong", "rural", 5),
+                ("Lomanthang", "rural", 5),
+                ("Thasang", "rural", 5),
+            ],
+            "Manang": [
+                ("Chame", "rural", 5),
+                ("Narpa Bhumi", "rural", 5),
+                ("Neshyang", "rural", 5),
+                ("Nashong", "rural", 5),
+            ],
+            "Nawalpur": [
+                ("Kawasoti", "municipality", 9),
+                ("Devchuli", "municipality", 9),
+                ("Gaindakot", "municipality", 9),
+                ("Madhyabindu", "municipality", 9),
+                ("Binayi Tribeni", "rural", 7),
+                ("Bulingtar", "rural", 7),
+                ("Hupsekot", "rural", 7),
+            ],
+        },
     },
     5: {
         "name": "Lumbini",
-        "districts": [
-            "Arghakhanchi", "Banke", "Bardiya", "Dang", "Gulmi",
-            "Kapilvastu", "Nawalparasi (Bardaghat Susta West)", "Palpa",
-            "Pyuthan", "Rolpa", "Rupandehi", "Eastern Rukum",
-        ],
+        "districts": {
+            "Rupandehi": [
+                ("Butwal", "sub_metropolitan", 19),
+                ("Siddharthanagar", "sub_metropolitan", 19),
+                ("Devdaha", "municipality", 9),
+                ("Lumbini Sanskritic", "municipality", 9),
+                ("Marchawari", "municipality", 9),
+                ("Omsatiya", "municipality", 9),
+                ("Rohini", "municipality", 9),
+                ("Sainamaina", "municipality", 9),
+                ("Siyari", "municipality", 9),
+                ("Tilottama", "municipality", 14),
+                ("Gaidahawa", "rural", 7),
+                ("Kanchan", "rural", 7),
+                ("Kotahimai", "rural", 7),
+                ("Mayadevi", "rural", 7),
+                ("Sammarimai", "rural", 7),
+                ("Suddhodhan", "rural", 7),
+                ("Sunwal", "municipality", 9),
+            ],
+            "Kapilvastu": [
+                ("Kapilvastu", "municipality", 9),
+                ("Krishnanagar", "municipality", 9),
+                ("Banganga", "municipality", 9),
+                ("Buddhabhumi", "municipality", 9),
+                ("Maharajgunj", "municipality", 9),
+                ("Shivaraj", "municipality", 9),
+                ("Yashodhara", "municipality", 9),
+                ("Bijaynagar", "rural", 7),
+                ("Mayadevi", "rural", 7),
+                ("Suddhodhan", "rural", 7),
+                ("Maidanpur", "rural", 7),
+            ],
+            "Nawalparasi (Bardaghat Susta West)": [
+                ("Bardaghat", "municipality", 9),
+                ("Ramgram", "municipality", 9),
+                ("Sunwal", "municipality", 9),
+                ("Palhinandan", "rural", 7),
+                ("Pratappur", "rural", 7),
+                ("Sarawal", "rural", 6),
+                ("Susta", "rural", 6),
+            ],
+            "Arghakhanchi": [
+                ("Sandhikharka", "municipality", 9),
+                ("Sitganga", "municipality", 9),
+                ("Bhumikasthan", "municipality", 9),
+                ("Chhatradev", "rural", 7),
+                ("Malarani", "rural", 7),
+                ("Panini", "rural", 8),
+            ],
+            "Palpa": [
+                ("Tansen", "municipality", 9),
+                ("Rampur", "municipality", 9),
+                ("Rambha", "municipality", 9),
+                ("Baglung", "rural", 7),
+                ("Bagnaskali", "rural", 7),
+                ("Mathagadhi", "rural", 7),
+                ("Naubahini", "rural", 7),
+                ("Purbakhola", "rural", 7),
+                ("Ribdikot", "rural", 7),
+                ("Tinau", "rural", 7),
+            ],
+            "Gulmi": [
+                ("Musikot", "municipality", 9),
+                ("Resunga", "municipality", 9),
+                ("Isma", "rural", 7),
+                ("Chatrakot", "rural", 7),
+                ("Dhurkot", "rural", 7),
+                ("Gulmi Darbar", "rural", 7),
+                ("Kaligandaki", "rural", 7),
+                ("Madane", "rural", 7),
+                ("Malika", "rural", 7),
+                ("Ruru", "rural", 7),
+                ("Satyawati", "rural", 7),
+            ],
+            "Pyuthan": [
+                ("Pyuthan", "municipality", 9),
+                ("Sworgadwari", "municipality", 9),
+                ("Gaumukhi", "rural", 7),
+                ("Jhimruk", "rural", 7),
+                ("Mallarani", "rural", 7),
+                ("Mandavi", "rural", 7),
+                ("Naubahini", "rural", 7),
+                ("Sarumarani", "rural", 7),
+                ("Swar", "rural", 7),
+            ],
+            "Rolpa": [
+                ("Rolpa", "municipality", 9),
+                ("Triveni", "municipality", 9),
+                ("Lungri", "rural", 6),
+                ("Madi", "rural", 7),
+                ("Pariwartan", "rural", 7),
+                ("Runtigadhi", "rural", 7),
+                ("Sunchhahari", "rural", 7),
+                ("Sukidaha", "rural", 7),
+                ("Thawang", "rural", 6),
+            ],
+            "Eastern Rukum": [
+                ("Bhume", "rural", 5),
+                ("Putha Uttarganga", "rural", 6),
+            ],
+            "Dang": [
+                ("Tulsipur", "sub_metropolitan", 19),
+                ("Ghorahi", "sub_metropolitan", 19),
+                ("Lamahi", "municipality", 9),
+                ("Babai", "rural", 7),
+                ("Banglachuli", "rural", 6),
+                ("Dangisharan", "rural", 7),
+                ("Gadhawa", "rural", 8),
+                ("Rajpur", "rural", 6),
+                ("Rapti", "rural", 7),
+                ("Shantinagar", "rural", 7),
+            ],
+            "Banke": [
+                ("Nepalgunj", "sub_metropolitan", 19),
+                ("Kohalpur", "municipality", 9),
+                ("Baijanath", "rural", 7),
+                ("Duduwa", "rural", 7),
+                ("Janaki", "rural", 7),
+                ("Khajura", "rural", 7),
+                ("Narainapur", "rural", 7),
+                ("Rapti Sonari", "rural", 7),
+            ],
+            "Bardiya": [
+                ("Gulariya", "municipality", 9),
+                ("Rajapur", "municipality", 9),
+                ("Madhuwan", "municipality", 9),
+                ("Barbardiya", "municipality", 9),
+                ("Bansgadhi", "municipality", 9),
+                ("Bansagadhi", "rural", 7),
+                ("Badhaiyatal", "rural", 7),
+                ("Geruwa", "rural", 7),
+                ("Suryapatuwa", "rural", 7),
+                ("Thakurbaba", "municipality", 9),
+            ],
+        },
     },
     6: {
         "name": "Karnali",
-        "districts": [
-            "Dolpa", "Humla", "Jajarkot", "Jumla", "Kalikot",
-            "Mugu", "Salyan", "Surkhet", "Western Rukum",
-        ],
+        "districts": {
+            "Surkhet": [
+                ("Birendranagar", "municipality", 9),
+                ("Bheriganga", "municipality", 9),
+                ("Gurbhakot", "municipality", 9),
+                ("Panchapuri", "municipality", 9),
+                ("Chingad", "rural", 6),
+                ("Barahtal", "rural", 6),
+                ("Simta", "rural", 7),
+                ("Lekbeshi", "municipality", 9),
+            ],
+            "Dailekh": [
+                ("Narayan", "municipality", 9),
+                ("Dullu", "municipality", 9),
+                ("Aathabis", "municipality", 9),
+                ("Bhairabi", "rural", 6),
+                ("Bhagawatimai", "rural", 7),
+                ("Chamunda Bindrasaini", "municipality", 9),
+                ("Dungeshwar", "rural", 7),
+                ("Gurans", "rural", 7),
+                ("Naumule", "rural", 6),
+                ("Mahabu", "rural", 6),
+                ("Thantikandh", "rural", 7),
+            ],
+            "Jajarkot": [
+                ("Bheri", "municipality", 9),
+                ("Chhedagad", "municipality", 9),
+                ("Barekot", "rural", 7),
+                ("Junichande", "rural", 6),
+                ("Kuse", "rural", 6),
+                ("Nalgad", "municipality", 9),
+                ("Shiwalaya", "rural", 6),
+                ("Tribeni", "rural", 6),
+            ],
+            "Western Rukum": [
+                ("Musikot", "municipality", 9),
+                ("Aathbiskot", "municipality", 9),
+                ("Banfikot", "rural", 6),
+                ("Chaurjahari", "municipality", 9),
+                ("Madi", "rural", 6),
+                ("Sanibheri", "rural", 7),
+                ("Sani Triveni", "rural", 7),
+                ("Triveni", "rural", 7),
+            ],
+            "Salyan": [
+                ("Sharada", "municipality", 9),
+                ("Bangad Kupinde", "municipality", 9),
+                ("Bagchaur", "municipality", 9),
+                ("Kalimati", "rural", 7),
+                ("Kapurkot", "rural", 7),
+                ("Kumakh", "rural", 7),
+                ("Siddha Kumakh", "rural", 7),
+                ("Tribeni", "rural", 7),
+            ],
+            "Dolpa": [
+                ("Thuli Bheri", "municipality", 9),
+                ("Tripurasundari", "municipality", 9),
+                ("Chharka Tangsong", "rural", 5),
+                ("Dolpo Buddha", "rural", 5),
+                ("Jagadulla", "rural", 5),
+                ("Kaike", "rural", 5),
+                ("Mudkechula", "rural", 6),
+                ("She Phoksundo", "rural", 5),
+            ],
+            "Mugu": [
+                ("Khatyad", "rural", 5),
+                ("Chhayanath Rara", "municipality", 9),
+                ("Mugum Karmarong", "rural", 6),
+                ("Soru", "rural", 5),
+            ],
+            "Humla": [
+                ("Simkot", "municipality", 9),
+                ("Adanchuli", "rural", 5),
+                ("Chankheli", "rural", 5),
+                ("Kharpunath", "rural", 5),
+                ("Namkha", "rural", 5),
+                ("Sarkegad", "rural", 6),
+                ("Tanjakot", "rural", 5),
+            ],
+            "Jumla": [
+                ("Chandannath", "municipality", 9),
+                ("Guthichaur", "rural", 6),
+                ("Hima", "rural", 5),
+                ("Kanakasundari", "rural", 6),
+                ("Patarasi", "rural", 7),
+                ("Sinja", "rural", 7),
+                ("Tatopani", "rural", 5),
+                ("Tila", "rural", 7),
+            ],
+            "Kalikot": [
+                ("Khandachakra", "municipality", 9),
+                ("Raskot", "municipality", 9),
+                ("Tilagufa", "municipality", 9),
+                ("Pachaljharana", "rural", 6),
+                ("Mahawai", "rural", 6),
+                ("Narharinath", "rural", 7),
+                ("Palata", "rural", 7),
+                ("Sanni Triveni", "rural", 7),
+                ("Shubha Kalika", "rural", 7),
+            ],
+        },
     },
     7: {
         "name": "Sudurpashchim",
-        "districts": [
-            "Achham", "Baitadi", "Bajhang", "Bajura", "Dadeldhura",
-            "Darchula", "Doti", "Kailali", "Kanchanpur",
-        ],
+        "districts": {
+            "Kailali": [
+                ("Dhangadhi", "sub_metropolitan", 19),
+                ("Tikapur", "municipality", 9),
+                ("Bhajani", "municipality", 9),
+                ("Godawari", "municipality", 9),
+                ("Ghodaghodi", "municipality", 9),
+                ("Lamki Chuha", "municipality", 9),
+                ("Janaki", "municipality", 9),
+                ("Kailari", "rural", 9),
+                ("Bardagoriya", "rural", 8),
+                ("Chure", "rural", 5),
+                ("Gauriganga", "rural", 9),
+                ("Mohanyal", "rural", 7),
+                ("Phatedpur", "rural", 7),
+            ],
+            "Kanchanpur": [
+                ("Mahendranagar", "municipality", 9),
+                ("Belauri", "municipality", 9),
+                ("Bhimdatta", "municipality", 9),
+                ("Punarbas", "municipality", 9),
+                ("Shuklaphanta", "municipality", 9),
+                ("Bedkot", "municipality", 9),
+                ("Beldandi", "rural", 7),
+                ("Krishnapur", "municipality", 9),
+                ("Laljhadi", "rural", 7),
+                ("Dodhara Chandani", "municipality", 9),
+            ],
+            "Dadeldhura": [
+                ("Amargadhi", "municipality", 9),
+                ("Aalital", "rural", 6),
+                ("Bhageshwar", "rural", 7),
+                ("Ganyapadhura", "rural", 6),
+                ("Nawadurga", "rural", 7),
+                ("Parashuram", "municipality", 9),
+            ],
+            "Doti": [
+                ("Dipayal Silgadhi", "municipality", 9),
+                ("Shikhar", "municipality", 9),
+                ("Purbichauki", "rural", 8),
+                ("Aadarsha", "rural", 8),
+                ("Badikedar", "rural", 7),
+                ("Bogtan Phudsil", "rural", 7),
+                ("Jorayal", "rural", 7),
+                ("K.I.Singh", "rural", 7),
+                ("Sayal", "rural", 7),
+            ],
+            "Achham": [
+                ("Mangalsen", "municipality", 9),
+                ("Sanphebagar", "municipality", 9),
+                ("Bannigadhi Jayagadh", "rural", 7),
+                ("Chaurpati", "rural", 7),
+                ("Dhakari", "rural", 7),
+                ("Mellekh", "rural", 7),
+                ("Panchadevl Binayak", "rural", 7),
+                ("Ramaroshan", "rural", 7),
+                ("Turmakhand", "rural", 7),
+            ],
+            "Bajura": [
+                ("Budhinanda", "municipality", 9),
+                ("Badimalika", "municipality", 9),
+                ("Himali", "rural", 5),
+                ("Jagannath", "rural", 7),
+                ("Khaptad Chhanna", "rural", 6),
+                ("Kuldevta", "rural", 6),
+                ("Swami Kartik Khapar", "rural", 6),
+                ("Triveni", "rural", 7),
+            ],
+            "Bajhang": [
+                ("Bungal", "municipality", 9),
+                ("Jayaprithvi", "municipality", 9),
+                ("Bithadchir", "rural", 7),
+                ("Durgathali", "rural", 7),
+                ("Khaptad Chhanna", "rural", 6),
+                ("Masta", "rural", 7),
+                ("Saipal", "rural", 6),
+                ("Surma", "rural", 5),
+                ("Thalara", "rural", 7),
+                ("Talkot", "rural", 6),
+            ],
+            "Baitadi": [
+                ("Dasharathchand", "municipality", 9),
+                ("Patan", "municipality", 9),
+                ("Dogadakedar", "rural", 7),
+                ("Dilasaini", "rural", 7),
+                ("Melauli", "rural", 7),
+                ("Purchaudi", "rural", 7),
+                ("Shivanath", "rural", 7),
+                ("Sigas", "rural", 7),
+                ("Surnaya", "rural", 7),
+            ],
+            "Darchula": [
+                ("Darchula", "municipality", 9),
+                ("Shailyashikhar", "municipality", 9),
+                ("Apihimal", "rural", 5),
+                ("Byans", "rural", 5),
+                ("Lekam", "rural", 7),
+                ("Mahakali", "rural", 7),
+                ("Marma", "rural", 7),
+                ("Naugad", "rural", 6),
+            ],
+        },
     },
 }
 
 
 class Command(BaseCommand):
-    help = "Seed Nepal provinces and districts (7 provinces, 77 districts)"
+    help = "Seed Nepal provinces, districts, municipalities, and wards"
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--clear',
+            action='store_true',
+            help='Delete all existing location data before seeding (use with caution)',
+        )
 
     def handle(self, *args, **options):
-        total_districts = 0
-        for number, data in NEPAL_DATA.items():
-            province, created = Province.objects.get_or_create(
-                number=number,
-                defaults={"name": data["name"]}
-            )
-            if not created:
-                province.name = data["name"]
-                province.save()
-            action = "Created" if created else "Updated"
-            self.stdout.write(f"  {action} Province {number}: {data['name']}")
+        if options['clear']:
+            self.stdout.write(self.style.WARNING("Clearing existing location data..."))
+            Ward.objects.all().delete()
+            Municipality.objects.all().delete()
+            District.objects.all().delete()
+            Province.objects.all().delete()
 
-            for district_name in data["districts"]:
-                _, d_created = District.objects.get_or_create(
+        total_municipalities = 0
+        total_wards = 0
+
+        for prov_number, prov_data in NEPAL_DATA.items():
+            province, p_created = Province.objects.get_or_create(
+                number=prov_number,
+                defaults={"name": prov_data["name"]}
+            )
+            if not p_created and province.name != prov_data["name"]:
+                province.name = prov_data["name"]
+                province.save()
+
+            self.stdout.write(
+                f"\nProvince {prov_number}: {prov_data['name']} "
+                f"({'created' if p_created else 'updated'})"
+            )
+
+            for district_name, municipalities in prov_data["districts"].items():
+                district, _ = District.objects.get_or_create(
                     name=district_name,
                     province=province,
                 )
-                if d_created:
-                    total_districts += 1
+
+                # Deduplicate municipalities within a district (data entry safety)
+                seen = set()
+                for muni_name, muni_type, ward_count in municipalities:
+                    key = (muni_name, district.pk)
+                    if key in seen:
+                        continue
+                    seen.add(key)
+
+                    muni, m_created = Municipality.objects.get_or_create(
+                        name=muni_name,
+                        district=district,
+                        defaults={"type": muni_type, "ward_count": ward_count},
+                    )
+                    if not m_created:
+                        # Update type and ward count in case they changed
+                        muni.type = muni_type
+                        muni.ward_count = ward_count
+                        muni.save()
+
+                    if m_created:
+                        total_municipalities += 1
+
+                    # Generate individual Ward rows
+                    for ward_number in range(1, ward_count + 1):
+                        _, w_created = Ward.objects.get_or_create(
+                            municipality=muni,
+                            number=ward_number,
+                        )
+                        if w_created:
+                            total_wards += 1
 
         self.stdout.write(self.style.SUCCESS(
-            f"\nDone. 7 provinces, {total_districts} new districts seeded "
-            f"(total in DB: {District.objects.count()})."
+            f"\n✓ Seeding complete.\n"
+            f"  Provinces : {Province.objects.count()}\n"
+            f"  Districts : {District.objects.count()}\n"
+            f"  Municipalities : {Municipality.objects.count()} "
+            f"(new: {total_municipalities})\n"
+            f"  Wards : {Ward.objects.count()} (new: {total_wards})\n"
         ))

@@ -1,4 +1,4 @@
-from django.db.models import Sum, Q
+from django.db.models import Sum
 from rest_framework import generics, status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -6,16 +6,20 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView
 from django.shortcuts import get_object_or_404
 
-from .models import Province, District, Issue, Comment, Vote, Report
+from .models import Province, District, Municipality, Ward, Issue, Comment, Vote, Report
 from .serializers import (
     MyTokenObtainPairSerializer, RegisterSerializer, MeSerializer,
-    ProvinceSerializer, DistrictSerializer,
+    ProvinceSerializer, DistrictSerializer, MunicipalitySerializer, WardSerializer,
     IssueListSerializer, IssueDetailSerializer, IssueCreateSerializer, IssueStatusSerializer,
     CommentSerializer, CommentCreateSerializer,
     VoteSerializer, ReportSerializer,
 )
 from .permissions import IsAuthorOrModerator
 
+
+# ---------------------------------------------------------------------------
+# Auth
+# ---------------------------------------------------------------------------
 
 class MyTokenObtainPairView(TokenObtainPairView):
     serializer_class = MyTokenObtainPairSerializer
@@ -33,11 +37,16 @@ class MeView(generics.RetrieveUpdateAPIView):
     def get_object(self):
         return self.request.user
 
-    def get_serializer(self, *args, **kwargs):
-        # Only allow bio updates from this endpoint
-        kwargs['fields'] = ['bio']
-        return super().get_serializer(*args, **kwargs)
 
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def me_view(request):
+    return Response(MeSerializer(request.user).data)
+
+
+# ---------------------------------------------------------------------------
+# Geography — all read-only, public
+# ---------------------------------------------------------------------------
 
 class ProvinceListView(generics.ListAPIView):
     serializer_class = ProvinceSerializer
@@ -57,6 +66,56 @@ class DistrictListView(generics.ListAPIView):
         return qs
 
 
+class MunicipalityListView(generics.ListAPIView):
+    """
+    GET /api/municipalities/
+    Optional filters: ?district=<id>  ?province=<id>  ?type=<municipality|rural|…>
+    """
+    serializer_class = MunicipalitySerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        qs = Municipality.objects.select_related('district__province')
+        district_id = self.request.query_params.get('district')
+        province_id = self.request.query_params.get('province')
+        mtype = self.request.query_params.get('type')
+
+        if district_id:
+            qs = qs.filter(district_id=district_id)
+        if province_id:
+            qs = qs.filter(district__province_id=province_id)
+        if mtype:
+            qs = qs.filter(type=mtype)
+        return qs
+
+
+class WardListView(generics.ListAPIView):
+    """
+    GET /api/wards/
+    Optional filters: ?municipality=<id>  ?district=<id>  ?province=<id>
+    """
+    serializer_class = WardSerializer
+    permission_classes = [permissions.AllowAny]
+
+    def get_queryset(self):
+        qs = Ward.objects.select_related('municipality__district__province')
+        municipality_id = self.request.query_params.get('municipality')
+        district_id = self.request.query_params.get('district')
+        province_id = self.request.query_params.get('province')
+
+        if municipality_id:
+            qs = qs.filter(municipality_id=municipality_id)
+        if district_id:
+            qs = qs.filter(municipality__district_id=district_id)
+        if province_id:
+            qs = qs.filter(municipality__district__province_id=province_id)
+        return qs
+
+
+# ---------------------------------------------------------------------------
+# Issues
+# ---------------------------------------------------------------------------
+
 class IssueListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
@@ -67,11 +126,13 @@ class IssueListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         qs = Issue.objects.filter(is_deleted=False).select_related(
-            'author', 'province', 'district'
+            'author', 'province', 'district', 'municipality', 'ward'
         ).prefetch_related('votes', 'comments')
 
         province = self.request.query_params.get('province')
         district = self.request.query_params.get('district')
+        municipality = self.request.query_params.get('municipality')
+        ward = self.request.query_params.get('ward')
         category = self.request.query_params.get('category')
         sort = self.request.query_params.get('sort', 'new')
 
@@ -79,6 +140,10 @@ class IssueListCreateView(generics.ListCreateAPIView):
             qs = qs.filter(province_id=province)
         if district:
             qs = qs.filter(district_id=district)
+        if municipality:
+            qs = qs.filter(municipality_id=municipality)
+        if ward:
+            qs = qs.filter(ward_id=ward)
         if category:
             qs = qs.filter(category=category)
 
@@ -105,7 +170,7 @@ class IssueDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         return Issue.objects.filter(is_deleted=False).select_related(
-            'author', 'province', 'district'
+            'author', 'province', 'district', 'municipality', 'ward'
         ).prefetch_related('votes', 'comments')
 
     def get_serializer_context(self):
@@ -114,10 +179,13 @@ class IssueDetailView(generics.RetrieveUpdateDestroyAPIView):
         return ctx
 
     def perform_destroy(self, instance):
-        # Soft delete
         instance.is_deleted = True
         instance.save()
 
+
+# ---------------------------------------------------------------------------
+# Comments
+# ---------------------------------------------------------------------------
 
 class CommentListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
@@ -152,6 +220,10 @@ class CommentDestroyView(generics.DestroyAPIView):
         instance.save()
 
 
+# ---------------------------------------------------------------------------
+# Votes
+# ---------------------------------------------------------------------------
+
 class VoteView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -167,16 +239,21 @@ class VoteView(APIView):
         )
         if not created:
             if vote.value == value:
-                # Toggle off (remove vote)
                 vote.delete()
                 return Response({'detail': 'Vote removed.'}, status=status.HTTP_200_OK)
             else:
                 vote.value = value
                 vote.save()
 
-        score = issue.vote_score
-        return Response({'vote_score': score, 'user_vote': value}, status=status.HTTP_200_OK)
+        return Response(
+            {'vote_score': issue.vote_score, 'user_vote': value},
+            status=status.HTTP_200_OK
+        )
 
+
+# ---------------------------------------------------------------------------
+# Reports
+# ---------------------------------------------------------------------------
 
 class ReportView(generics.CreateAPIView):
     serializer_class = ReportSerializer
@@ -184,7 +261,7 @@ class ReportView(generics.CreateAPIView):
 
     def get_serializer_context(self):
         ctx = super().get_serializer_context()
-        ctx['target_type'] = self.kwargs.get('target_type')  # 'issue' or 'comment'
+        ctx['target_type'] = self.kwargs.get('target_type')
         ctx['target_id'] = self.kwargs.get('target_id')
         return ctx
 
@@ -197,10 +274,3 @@ class ReportView(generics.CreateAPIView):
         elif target_type == 'comment':
             get_object_or_404(Comment, pk=target_id)
             serializer.save(reporter=self.request.user, comment_id=target_id)
-
-
-@api_view(['GET'])
-@permission_classes([permissions.IsAuthenticated])
-def me_view(request):
-    from .serializers import MeSerializer
-    return Response(MeSerializer(request.user).data)
