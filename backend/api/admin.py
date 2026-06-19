@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from django.utils.html import format_html
-from .models import User, Province, District, Issue, Comment, Vote, Report
+from .models import User, Province, District, Issue, Comment, Vote, Report, Municipality, Ward
 
 
 @admin.register(User)
@@ -87,3 +87,16 @@ class ReportAdmin(admin.ModelAdmin):
         return '-'
     target_link.short_description = 'Target'
     target_link.allow_tags = True
+
+@admin.register(Municipality)
+class MunicipalityAdmin(admin.ModelAdmin):
+    list_display = ['name', 'district', 'type', 'ward_count']
+    list_filter = ['type', 'district__province']
+    search_fields = ['name']
+
+
+@admin.register(Ward)
+class WardAdmin(admin.ModelAdmin):
+    list_display = ['number', 'municipality']
+    list_filter = ['municipality__district__province']
+    search_fields = ['municipality__name']
