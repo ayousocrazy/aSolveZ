@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-
+import logo from '../assests/MataData.png';
 function NavLink({ to, children }) {
   return (
     <Link to={to} className="nav-link">
@@ -48,15 +48,14 @@ export function Navbar() {
 
   return (
     <header className="navbar">
-      <div className="navbar-brand">
-        <div className="seal">
-          <span className="seal-icon">W</span>
-        </div>
-        <div>
-          <p className="screen-title">WardConnect</p>
-          <p className="body-copy">Local complaints, managed with care.</p>
-        </div>
-      </div>
+<div className="navbar-brand">
+<img src={logo} alt="MatData logo" className="navbar-logo" />
+
+  <div>
+    <p className="screen-title">MatData</p>
+    <p className="body-copy">Local complaints, managed with care.</p>
+  </div>
+</div>
 
       <nav className="navbar-links">
         {user ? (
@@ -77,12 +76,14 @@ export function Navbar() {
             <NavLink to="/profile">{t('profile')}</NavLink>
             <button type="button" className="button-secondary" onClick={handleLogout}>{t('logout')}</button>
           </>
-        ) : (
-          <>
-            <NavLink to="/login">{t('login')}</NavLink>
-            <NavLink to="/register">{t('register')}</NavLink>
-          </>
-        )}
+        ) : null
+        // (
+        //   <>
+        //     <NavLink to="/login">{t('login')}</NavLink>
+        //     <NavLink to="/register">{t('register')}</NavLink>
+        //   </>
+        // )
+        }
         <button type="button" className="button-tertiary locale-toggle" onClick={() => setLocale((prev) => (prev === 'en' ? 'ne' : 'en'))}>
           {locale === 'en' ? 'नेपाली' : 'EN'}
         </button>
