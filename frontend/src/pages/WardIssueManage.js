@@ -51,64 +51,72 @@ export default function WardIssueManage() {
   if (!issue) return <ErrorBox error={error || 'Not found'} />;
 
   return (
-    <div style={{ maxWidth: '640px', margin: '32px auto', padding: '0 16px' }}>
-      <button onClick={() => navigate('/ward/issues')} style={{ marginBottom: '16px' }}>← Back</button>
-      <h2>Manage Issue #{issue.id}</h2>
-
-      <div style={{ marginBottom: '16px' }}>
-        <strong style={{ textTransform: 'capitalize' }}>{issue.category}</strong>
-        {' · '}
-        <span style={{ textTransform: 'capitalize' }}>{issue.status}</span>
-        <p>{issue.description}</p>
-        {issue.locality && <p><small>Locality: {issue.locality}</small></p>}
-        {issue.image && <img src={issue.image} alt="Issue" style={{ maxWidth: '100%' }} />}
-        {issue.video && <video src={issue.video} controls style={{ maxWidth: '100%' }} />}
-        <p><small>Submitted: {new Date(issue.created_at).toLocaleString()}</small></p>
-        <p><small>Votes: {issue.vote_score ?? 0}</small></p>
-      </div>
-
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: '12px' }}>
-          <label>Status *</label><br />
-          <select value={status} onChange={e => setStatus(e.target.value)} required>
-            {STATUSES.map(s => <option key={s} value={s} style={{ textTransform: 'capitalize' }}>{s}</option>)}
-          </select>
+    <main className="page-shell page-pad">
+      <div className="card" style={{ maxWidth: '760px', margin: '0 auto' }}>
+        <button type="button" className="back-button" onClick={() => navigate('/ward/issues')}>
+          ← Back
+        </button>
+        <div className="detail-header">
+          <div>
+            <h1 className="page-heading">Manage Issue #{issue.id}</h1>
+            <div className="detail-meta" style={{ gap: '14px', marginTop: '8px' }}>
+              <span>{issue.category}</span>
+              <span>{issue.status}</span>
+              <span>Submitted: {new Date(issue.created_at).toLocaleDateString()}</span>
+              <span>Votes: {issue.vote_score ?? 0}</span>
+            </div>
+          </div>
         </div>
 
-        {status === 'completed' && (
-          <>
-            <div style={{ marginBottom: '12px' }}>
-              <label>Resolution Note {status === 'completed' ? '*' : ''}</label><br />
-              <textarea value={resNote} onChange={e => setResNote(e.target.value)} rows={4} style={{ width: '100%' }} required={status === 'completed'} />
-            </div>
-            <div style={{ marginBottom: '12px' }}>
-              <label>Resolution Image</label><br />
-              <input type="file" accept="image/*" onChange={e => setResImage(e.target.files[0])} />
-            </div>
-            <div style={{ marginBottom: '12px' }}>
-              <label>Resolution Video</label><br />
-              <input type="file" accept="video/*" onChange={e => setResVideo(e.target.files[0])} />
-            </div>
-          </>
-        )}
+        <p className="body-copy" style={{ marginTop: '12px' }}>{issue.description}</p>
+        {issue.locality && <p className="body-copy">Locality: {issue.locality}</p>}
+        {issue.image && <div className="detail-media"><img src={issue.image} alt="Issue" /></div>}
+        {issue.video && <div className="detail-media"><video src={issue.video} controls /></div>}
 
-        {success && <p style={{ color: 'green' }}>Issue updated successfully.</p>}
-        <ErrorBox error={error} />
-        <button type="submit">Save Changes</button>
-      </form>
+        <form onSubmit={handleSubmit} className="form-fieldset" style={{ marginTop: '24px' }}>
+          <label className="label">
+            Status *
+            <select className="select-field" value={status} onChange={e => setStatus(e.target.value)} required>
+              {STATUSES.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+            </select>
+          </label>
 
-      {/* Comments */}
-      <div style={{ marginTop: '32px' }}>
-        <h3>Comments ({comments.length})</h3>
-        {comments.map(c => (
-          <div key={c.id} style={{ borderBottom: '1px solid #eee', padding: '8px 0' }}>
-            <strong>{c.author_name || 'User'}</strong>
-            <small style={{ marginLeft: '8px', color: '#666' }}>{new Date(c.created_at).toLocaleString()}</small>
-            <p style={{ margin: '4px 0' }}>{c.text}</p>
-          </div>
-        ))}
-        {comments.length === 0 && <p>No comments yet.</p>}
+          {status === 'completed' && (
+            <>
+              <label className="label">
+                Resolution Note *
+                <textarea className="textarea-field" value={resNote} onChange={e => setResNote(e.target.value)} rows={4} required={status === 'completed'} />
+              </label>
+              <label className="label">
+                Resolution Image
+                <input type="file" accept="image/*" onChange={e => setResImage(e.target.files[0])} />
+              </label>
+              <label className="label">
+                Resolution Video
+                <input type="file" accept="video/*" onChange={e => setResVideo(e.target.files[0])} />
+              </label>
+            </>
+          )}
+
+          {success && <p className="body-copy" style={{ color: 'var(--color-green)' }}>Issue updated successfully.</p>}
+          <ErrorBox error={error} />
+          <button type="submit" className="button-primary">Save Changes</button>
+        </form>
+
+        <div className="comment-list" style={{ marginTop: '32px' }}>
+          <h2 className="section-heading">Comments ({comments.length})</h2>
+          {comments.length === 0 && <p className="body-copy">No comments yet.</p>}
+          {comments.map(c => (
+            <article key={c.id} className="comment-card">
+              <div className="comment-meta">
+                <strong>{c.author_name || 'User'}</strong>
+                <small>{new Date(c.created_at).toLocaleString()}</small>
+              </div>
+              <p className="body-copy">{c.text}</p>
+            </article>
+          ))}
+        </div>
       </div>
-    </div>
+    </main>
   );
 }

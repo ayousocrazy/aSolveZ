@@ -26,21 +26,26 @@ export default function Login() {
   };
 
   return (
-    <div style={{ maxWidth: '400px', margin: '48px auto', padding: '0 16px' }}>
-      <h2>Login</h2>
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: '12px' }}>
-          <label>Phone *</label><br />
-          <input value={phone} onChange={e => setPhone(e.target.value)} required style={{ width: '100%' }} />
-        </div>
-        <div style={{ marginBottom: '12px' }}>
-          <label>Password *</label><br />
-          <input type="password" value={password} onChange={e => setPassword(e.target.value)} required style={{ width: '100%' }} />
-        </div>
-        <ErrorBox error={error} />
-        <button type="submit" style={{ marginTop: '12px' }}>Login</button>
-      </form>
-      <p style={{ marginTop: '16px' }}>No account? <Link to="/register">Register</Link></p>
-    </div>
+    <main className="page-shell page-pad">
+      <section className="card" style={{ maxWidth: '440px', margin: '0 auto' }}>
+        <h1 className="page-heading">Login</h1>
+        <p className="body-copy" style={{ marginBottom: '24px' }}>Sign in to access your ward dashboard or citizen services.</p>
+        <form onSubmit={handleSubmit} className="form-fieldset">
+          <label className="label">
+            Phone *
+            <input className="input-field" value={phone} onChange={e => setPhone(e.target.value)} required />
+          </label>
+          <label className="label">
+            Password *
+            <input className="input-field" type="password" value={password} onChange={e => setPassword(e.target.value)} required />
+          </label>
+          <ErrorBox error={error} />
+          <button type="submit" className="button-primary">Login</button>
+        </form>
+        <p className="body-copy" style={{ marginTop: '18px' }}>
+          No account? <Link to="/register">Register</Link>
+        </p>
+      </section>
+    </main>
   );
 }

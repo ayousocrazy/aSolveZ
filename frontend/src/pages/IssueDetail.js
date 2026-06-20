@@ -6,6 +6,10 @@ import { Spinner, ErrorBox } from '../components/Common';
 
 const REPORT_REASONS = ['spam','hate','misinformation','irrelevant','false_resolution','other'];
 
+function prettyKey(value) {
+  return value.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export default function IssueDetail() {
   const { id } = useParams();
   const { user } = useAuth();
@@ -85,111 +89,99 @@ export default function IssueDetail() {
   const isCompleted = issue.status === 'completed';
 
   return (
-    <div style={{ maxWidth: '720px', margin: '32px auto', padding: '0 16px' }}>
-      <button onClick={() => navigate(-1)} style={{ marginBottom: '16px' }}>← Back</button>
-
-      <div style={{ marginBottom: '8px' }}>
-        <strong style={{ textTransform: 'capitalize' }}>{issue.category}</strong>
-        {' · '}
-        <span style={{ textTransform: 'capitalize' }}>{issue.status}</span>
-        {' · '}
-        <small>{new Date(issue.created_at).toLocaleString()}</small>
-      </div>
-
-      <p style={{ margin: '12px 0' }}>{issue.description}</p>
-
-      {issue.locality && <p><small>Locality: {issue.locality}</small></p>}
-
-      {issue.image && (
-        <div style={{ margin: '12px 0' }}>
-          <img src={issue.image} alt="Issue" style={{ maxWidth: '100%' }} />
+    <main className="page-shell page-pad">
+      <div className="detail-card" style={{ maxWidth: '840px', margin: '0 auto' }}>
+        <button type="button" className="back-button" onClick={() => navigate(-1)}>← Back</button>
+        <div className="detail-header">
+          <div className="issue-card-title" style={{ gap: '12px' }}>
+            <strong>{prettyKey(issue.category)}</strong>
+            <span className={`status-chip status-${issue.status || 'other'}`}>{prettyKey(issue.status || 'unknown')}</span>
+          </div>
+          <div className="detail-meta">
+            <small>{new Date(issue.created_at).toLocaleString()}</small>
+            {issue.locality && <small>Locality: {issue.locality}</small>}
+          </div>
         </div>
-      )}
-      {issue.video && (
-        <div style={{ margin: '12px 0' }}>
-          <video src={issue.video} controls style={{ maxWidth: '100%' }} />
-        </div>
-      )}
 
-      {/* Voting */}
-      {user && !user.is_ward_account && (
-        <div style={{ margin: '16px 0', display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <button onClick={() => handleVote(1)} style={{ fontWeight: userVote === 1 ? 'bold' : 'normal' }}>
-            ▲ Upvote
-          </button>
-          <span>{voteScore ?? 0}</span>
-          <button onClick={() => handleVote(-1)} style={{ fontWeight: userVote === -1 ? 'bold' : 'normal' }}>
-            ▼ Downvote
-          </button>
-        </div>
-      )}
+        <p className="detail-body">{issue.description}</p>
 
-      {/* Resolution */}
-      {isCompleted && issue.resolution_note && (
-        <div style={{ margin: '16px 0', padding: '12px', border: '1px solid #ccc' }}>
-          <strong>Resolution</strong>
-          <p>{issue.resolution_note}</p>
-          {issue.resolution_image && <img src={issue.resolution_image} alt="Resolution" style={{ maxWidth: '100%' }} />}
-          {issue.resolution_video && <video src={issue.resolution_video} controls style={{ maxWidth: '100%' }} />}
-        </div>
-      )}
+        {issue.image && <div className="detail-media"><img src={issue.image} alt="Issue" /></div>}
+        {issue.video && <div className="detail-media"><video src={issue.video} controls /></div>}
 
-      {/* Report */}
-      {user && !user.is_ward_account && (
-        <div style={{ margin: '16px 0' }}>
-          <button onClick={() => setShowReport(!showReport)}>
-            {isCompleted ? 'Re-flag (False Resolution)' : 'Report Issue'}
-          </button>
-          {showReport && (
-            <form onSubmit={handleReport} style={{ marginTop: '8px' }}>
-              <select value={reportReason} onChange={e => setReportReason(e.target.value)} required>
-                <option value="">Select reason</option>
-                {REPORT_REASONS.map(r => <option key={r} value={r}>{r.replace('_', ' ')}</option>)}
-              </select>
-              {' '}
-              <input placeholder="Optional note" value={reportNote} onChange={e => setReportNote(e.target.value)} />
-              {' '}
-              <button type="submit">Submit Report</button>
+        {user && !user.is_ward_account && (
+          <div className="review-actions" style={{ marginTop: '20px' }}>
+            <button type="button" className="button-secondary" onClick={() => handleVote(1)} style={{ fontWeight: userVote === 1 ? 700 : 500 }}>▲ Upvote</button>
+            <span className="small-copy">{voteScore ?? 0} votes</span>
+            <button type="button" className="button-secondary" onClick={() => handleVote(-1)} style={{ fontWeight: userVote === -1 ? 700 : 500 }}>▼ Downvote</button>
+          </div>
+        )}
+
+        {isCompleted && issue.resolution_note && (
+          <div className="form-card" style={{ marginTop: '24px' }}>
+            <h2 className="section-heading">Resolution</h2>
+            <p className="body-copy">{issue.resolution_note}</p>
+            {issue.resolution_image && <div className="detail-media"><img src={issue.resolution_image} alt="Resolution" /></div>}
+            {issue.resolution_video && <div className="detail-media"><video src={issue.resolution_video} controls /></div>}
+          </div>
+        )}
+
+        {user && !user.is_ward_account && (
+          <div className="form-card" style={{ marginTop: '24px' }}>
+            <button type="button" className="button-secondary" onClick={() => setShowReport(!showReport)}>
+              {isCompleted ? 'Re-flag False Resolution' : 'Report Issue'}
+            </button>
+            {showReport && (
+              <form onSubmit={handleReport} className="form-fieldset" style={{ marginTop: '18px' }}>
+                <label className="label">
+                  Report reason
+                  <select className="select-field" value={reportReason} onChange={e => setReportReason(e.target.value)} required>
+                    <option value="">Select reason</option>
+                    {REPORT_REASONS.map(r => <option key={r} value={r}>{prettyKey(r)}</option>)}
+                  </select>
+                </label>
+                <label className="label">
+                  Notes
+                  <textarea className="textarea-field" placeholder="Optional note" value={reportNote} onChange={e => setReportNote(e.target.value)} rows={3} />
+                </label>
+                <button type="submit" className="button-primary">Submit Report</button>
+              </form>
+            )}
+            {reportMsg && <p className="body-copy" style={{ color: 'var(--color-green)', marginTop: '12px' }}>{reportMsg}</p>}
+          </div>
+        )}
+
+        {canDelete && (
+          <button type="button" className="button-tertiary" onClick={handleDelete} style={{ marginTop: '20px' }}>Delete Issue</button>
+        )}
+
+        <ErrorBox error={error} />
+
+        <div className="comment-list" style={{ marginTop: '32px' }}>
+          <h2 className="section-heading">Comments ({comments.length})</h2>
+          {comments.length === 0 && <p className="body-copy">No comments yet.</p>}
+          {comments.map(c => (
+            <article key={c.id} className="comment-card">
+              <div className="comment-meta">
+                <strong>{c.author_name || 'User'}</strong>
+                <small>{new Date(c.created_at).toLocaleString()}</small>
+              </div>
+              <p className="body-copy">{c.text}</p>
+              {user && (user.id === c.author || user.is_moderator) && (
+                <button type="button" className="button-tertiary" onClick={() => handleDeleteComment(c.id)} style={{ width: 'fit-content' }}>Delete</button>
+              )}
+            </article>
+          ))}
+          {user && (
+            <form onSubmit={handleComment} className="comment-form">
+              <label className="label">
+                Add a comment
+                <textarea className="textarea-field" value={commentText} onChange={e => setCommentText(e.target.value)} placeholder="Write a comment…" rows={3} />
+              </label>
+              <button type="submit" className="button-primary">Post Comment</button>
             </form>
           )}
-          {reportMsg && <p style={{ color: 'green' }}>{reportMsg}</p>}
         </div>
-      )}
-
-      {canDelete && (
-        <button onClick={handleDelete} style={{ marginBottom: '16px' }}>Delete Issue</button>
-      )}
-
-      <ErrorBox error={error} />
-
-      {/* Comments */}
-      <div style={{ marginTop: '32px' }}>
-        <h3>Comments ({comments.length})</h3>
-        {comments.map(c => (
-          <div key={c.id} style={{ borderBottom: '1px solid #eee', padding: '8px 0' }}>
-            <strong>{c.author_name || 'User'}</strong>
-            <small style={{ marginLeft: '8px', color: '#666' }}>{new Date(c.created_at).toLocaleString()}</small>
-            <p style={{ margin: '4px 0' }}>{c.text}</p>
-            {user && (user.id === c.author || user.is_moderator) && (
-              <button onClick={() => handleDeleteComment(c.id)} style={{ fontSize: '0.8em' }}>Delete</button>
-            )}
-          </div>
-        ))}
-
-        {user && (
-          <form onSubmit={handleComment} style={{ marginTop: '16px' }}>
-            <textarea
-              value={commentText}
-              onChange={e => setCommentText(e.target.value)}
-              placeholder="Write a comment…"
-              rows={3}
-              style={{ width: '100%' }}
-            />
-            <br />
-            <button type="submit" style={{ marginTop: '8px' }}>Post Comment</button>
-          </form>
-        )}
       </div>
-    </div>
+    </main>
   );
 }

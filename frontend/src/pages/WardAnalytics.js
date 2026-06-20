@@ -25,9 +25,9 @@ export default function WardAnalytics() {
   if (loading) return <Spinner />;
 
   return (
-    <main className="page-shell" style={{ padding: '32px 0' }}>
-      <div className="card" style={{ maxWidth: '760px', margin: '0 auto' }}>
-        <div className="card-header" style={{ gap: '16px', alignItems: 'center' }}>
+    <main className="page-shell page-pad">
+      <div className="card" style={{ maxWidth: '820px', margin: '0 auto' }}>
+        <div className="card-header" style={{ display: 'grid', gap: '16px', alignItems: 'center', gridTemplateColumns: 'auto 1fr' }}>
           <div className="seal" style={{ width: '72px', height: '72px' }}>
             <span className="seal-icon">A</span>
           </div>
@@ -67,7 +67,7 @@ export default function WardAnalytics() {
           </div>
         ) : (
           <div className="empty-state-card" style={{ marginTop: '24px' }}>
-            <div className="seal" style={{ width: '84px', height: '84px', background: 'var(--color-bg-tertiary)', color: 'var(--color-text-tertiary)' }}>
+            <div className="seal" style={{ width: '84px', height: '84px', background: 'var(--color-bg-secondary)', color: 'var(--color-text-muted)' }}>
               <span className="seal-icon">✓</span>
             </div>
             <p className="screen-title" style={{ marginTop: '20px' }}>Analytics not available yet</p>

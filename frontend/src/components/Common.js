@@ -10,9 +10,36 @@ function NavLink({ to, children }) {
   );
 }
 
+const NAV_TEXT = {
+  en: {
+    issues: 'Issues',
+    posts: 'Posts',
+    analytics: 'Analytics',
+    wardFeed: 'Ward Feed',
+    rankings: 'Rankings',
+    profile: 'Profile',
+    login: 'Login',
+    register: 'Register',
+    logout: 'Logout',
+  },
+  ne: {
+    issues: 'समस्या',
+    posts: 'पोष्टहरू',
+    analytics: 'विश्लेषण',
+    wardFeed: 'वार्ड फिड',
+    rankings: 'र्याङ्किङ',
+    profile: 'प्रोफाइल',
+    login: 'लगइन',
+    register: 'रजिस्टर',
+    logout: 'लगआउट',
+  },
+};
+
 export function Navbar() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [locale, setLocale] = React.useState('en');
+  const t = (key) => NAV_TEXT[locale][key] || key;
 
   const handleLogout = () => {
     logout();
@@ -36,26 +63,29 @@ export function Navbar() {
           <>
             {user.is_ward_account ? (
               <>
-                <NavLink to="/ward/issues">Issues</NavLink>
-                <NavLink to="/ward/posts">Posts</NavLink>
-                <NavLink to="/ward/analytics">Analytics</NavLink>
+                <NavLink to="/ward/issues">{t('issues')}</NavLink>
+                <NavLink to="/ward/posts">{t('posts')}</NavLink>
+                <NavLink to="/ward/analytics">{t('analytics')}</NavLink>
               </>
             ) : (
               <>
-                <NavLink to="/issues">Issues</NavLink>
-                <NavLink to="/ward-posts">Ward Feed</NavLink>
-                <NavLink to="/ranking">Rankings</NavLink>
+                <NavLink to="/issues">{t('issues')}</NavLink>
+                <NavLink to="/ward-posts">{t('wardFeed')}</NavLink>
+                <NavLink to="/ranking">{t('rankings')}</NavLink>
               </>
             )}
-            <NavLink to="/profile">Profile</NavLink>
-            <button type="button" className="button-secondary" onClick={handleLogout}>Logout</button>
+            <NavLink to="/profile">{t('profile')}</NavLink>
+            <button type="button" className="button-secondary" onClick={handleLogout}>{t('logout')}</button>
           </>
         ) : (
           <>
-            <NavLink to="/login">Login</NavLink>
-            <NavLink to="/register">Register</NavLink>
+            <NavLink to="/login">{t('login')}</NavLink>
+            <NavLink to="/register">{t('register')}</NavLink>
           </>
         )}
+        <button type="button" className="button-tertiary locale-toggle" onClick={() => setLocale((prev) => (prev === 'en' ? 'ne' : 'en'))}>
+          {locale === 'en' ? 'नेपाली' : 'EN'}
+        </button>
       </nav>
     </header>
   );

@@ -13,7 +13,6 @@ export default function Ranking() {
 
   useEffect(() => {
     getMunicipalities().then(d => setMunicipalities(d.results || d)).catch(() => {});
-    // Pre-load user's municipality if available
     if (user?.ward_detail?.municipality_id) {
       setSelectedMuni(user.ward_detail.municipality_id);
     }
@@ -28,46 +27,57 @@ export default function Ranking() {
   }, [selectedMuni]);
 
   return (
-    <div style={{ maxWidth: '720px', margin: '32px auto', padding: '0 16px' }}>
-      <h2>Ward Rankings</h2>
-      <div style={{ marginBottom: '16px' }}>
-        <label>Select Municipality: </label>
-        <select value={selectedMuni} onChange={e => setSelectedMuni(e.target.value)}>
-          <option value="">-- Select --</option>
-          {municipalities.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-        </select>
-      </div>
-      {loading && <Spinner />}
-      <ErrorBox error={error} />
-      {ranking && (
-        <>
-          <h3>{ranking.municipality} — Ward Performance</h3>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #ccc' }}>
-                <th style={{ textAlign: 'left', padding: '8px' }}>Rank</th>
-                <th style={{ textAlign: 'left', padding: '8px' }}>Ward</th>
-                <th style={{ textAlign: 'left', padding: '8px' }}>Total</th>
-                <th style={{ textAlign: 'left', padding: '8px' }}>Completed</th>
-                <th style={{ textAlign: 'left', padding: '8px' }}>Pending</th>
-                <th style={{ textAlign: 'left', padding: '8px' }}>Rate %</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ranking.wards.map((w, i) => (
-                <tr key={w.ward_id} style={{ borderBottom: '1px solid #eee' }}>
-                  <td style={{ padding: '8px' }}>#{i + 1}</td>
-                  <td style={{ padding: '8px' }}>Ward {w.ward_number}</td>
-                  <td style={{ padding: '8px' }}>{w.total_issues}</td>
-                  <td style={{ padding: '8px' }}>{w.completed}</td>
-                  <td style={{ padding: '8px' }}>{w.pending}</td>
-                  <td style={{ padding: '8px' }}>{w.completion_rate}%</td>
+    <main className="page-shell page-pad">
+      <div className="card" style={{ maxWidth: '860px', margin: '0 auto' }}>
+        <h1 className="page-heading">Ward Rankings</h1>
+        <p className="body-copy" style={{ marginBottom: '24px' }}>Compare ward performance across your municipality and spot trends at a glance.</p>
+
+        <label className="label" style={{ display: 'block', marginBottom: '20px' }}>
+          Select Municipality
+          <select className="select-field" value={selectedMuni} onChange={e => setSelectedMuni(e.target.value)}>
+            <option value="">-- Select --</option>
+            {municipalities.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+          </select>
+        </label>
+
+        {loading && <Spinner />}
+        <ErrorBox error={error} />
+
+        {ranking ? (
+          <div className="panel-card">
+            <h2 className="section-heading">{ranking.municipality} — Ward Performance</h2>
+            <table className="table-ui">
+              <thead>
+                <tr>
+                  <th>Rank</th>
+                  <th>Ward</th>
+                  <th>Total</th>
+                  <th>Completed</th>
+                  <th>Pending</th>
+                  <th>Rate %</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </>
-      )}
-    </div>
+              </thead>
+              <tbody>
+                {ranking.wards.map((w, i) => (
+                  <tr key={w.ward_id}>
+                    <td>#{i + 1}</td>
+                    <td>Ward {w.ward_number}</td>
+                    <td>{w.total_issues}</td>
+                    <td>{w.completed}</td>
+                    <td>{w.pending}</td>
+                    <td>{w.completion_rate}%</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : selectedMuni && !loading ? (
+          <div className="empty-state-card">
+            <p className="screen-title">No ranking data yet</p>
+            <p className="body-copy">This municipality has not published ranking data for the selected ward group.</p>
+          </div>
+        ) : null}
+      </div>
+    </main>
   );
 }

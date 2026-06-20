@@ -19,23 +19,38 @@ export default function WardPosts() {
   if (loading) return <Spinner />;
 
   return (
-    <div style={{ maxWidth: '720px', margin: '32px auto', padding: '0 16px' }}>
-      <h2>Ward Feed</h2>
-      <ErrorBox error={error} />
-      {posts.length === 0 && <p>No posts from your ward yet.</p>}
-      {posts.map(post => (
-        <div key={post.id} style={{ borderBottom: '1px solid #ddd', padding: '16px 0' }}>
-          <div style={{ marginBottom: '4px' }}>
-            <strong>{post.title}</strong>
-            {' '}
-            <span style={{ fontSize: '0.8em', textTransform: 'capitalize' }}>({post.post_type?.replace('_', ' ')})</span>
+    <main className="page-shell page-pad">
+      <div style={{ maxWidth: '840px', margin: '0 auto' }}>
+        <h1 className="page-heading">Ward Feed</h1>
+        <p className="body-copy" style={{ marginBottom: '24px' }}>Announcements, updates, and community posts from your ward office.</p>
+        <ErrorBox error={error} />
+
+        {posts.length === 0 ? (
+          <div className="empty-state-card">
+            <p className="screen-title">No ward posts yet</p>
+            <p className="body-copy">Your ward office will share local updates here as soon as they become available.</p>
           </div>
-          <small style={{ color: '#555' }}>{new Date(post.created_at).toLocaleString()}</small>
-          <p style={{ margin: '8px 0' }}>{post.body}</p>
-          {post.image && <img src={post.image} alt="Post" style={{ maxWidth: '100%', marginTop: '8px' }} />}
-          {post.video && <video src={post.video} controls style={{ maxWidth: '100%', marginTop: '8px' }} />}
-        </div>
-      ))}
-    </div>
+        ) : (
+          <div className="post-list">
+            {posts.map(post => (
+              <article key={post.id} className="post-card">
+                <div className="feed-card-title">
+                  <strong>{post.title}</strong>
+                  <small>({post.post_type?.replace('_', ' ')})</small>
+                </div>
+                <div className="feed-card-meta">
+                  <span>{new Date(post.created_at).toLocaleString()}</span>
+                </div>
+                <p className="feed-card-copy">{post.body}</p>
+                {post.image && <img src={post.image} alt="Post" />}
+                {post.video && (
+                  <video src={post.video} controls />
+                )}
+              </article>
+            ))}
+          </div>
+        )}
+      </div>
+    </main>
   );
 }

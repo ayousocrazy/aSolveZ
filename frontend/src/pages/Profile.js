@@ -29,34 +29,38 @@ export default function Profile() {
   };
 
   return (
-    <div style={{ maxWidth: '480px', margin: '48px auto', padding: '0 16px' }}>
-      <h2>Profile</h2>
-      {user?.profile_picture && (
-        <div style={{ marginBottom: '16px' }}>
-          <img src={user.profile_picture} alt="Profile" style={{ width: '80px', height: '80px', objectFit: 'cover', borderRadius: '50%' }} />
+    <main className="page-shell page-pad">
+      <section className="card" style={{ maxWidth: '520px', margin: '0 auto' }}>
+        <h1 className="page-heading">Profile</h1>
+        {user?.profile_picture && (
+          <div style={{ marginBottom: '18px' }}>
+            <img src={user.profile_picture} alt="Profile" style={{ width: '88px', height: '88px', objectFit: 'cover', borderRadius: '50%' }} />
+          </div>
+        )}
+        <div className="body-copy" style={{ marginBottom: '18px' }}>
+          <p><strong>Phone:</strong> {user?.phone}</p>
+          {user?.ward_detail && (
+            <p><strong>Ward:</strong> Ward {user.ward_detail.number}, {user.ward_detail.municipality}</p>
+          )}
         </div>
-      )}
-      <p><strong>Phone:</strong> {user?.phone}</p>
-      {user?.ward_detail && (
-        <p><strong>Ward:</strong> Ward {user.ward_detail.number}, {user.ward_detail.municipality}</p>
-      )}
-      <form onSubmit={handleSubmit} style={{ marginTop: '24px' }}>
-        <div style={{ marginBottom: '12px' }}>
-          <label>Name</label><br />
-          <input value={name} onChange={e => setName(e.target.value)} style={{ width: '100%' }} />
-        </div>
-        <div style={{ marginBottom: '12px' }}>
-          <label>Email</label><br />
-          <input type="email" value={email} onChange={e => setEmail(e.target.value)} style={{ width: '100%' }} />
-        </div>
-        <div style={{ marginBottom: '12px' }}>
-          <label>Profile Picture</label><br />
-          <input type="file" accept="image/*" onChange={e => setPicture(e.target.files[0])} />
-        </div>
-        {success && <p style={{ color: 'green' }}>Profile updated.</p>}
-        <ErrorBox error={error} />
-        <button type="submit">Save Changes</button>
-      </form>
-    </div>
+        <form onSubmit={handleSubmit} className="form-fieldset">
+          <label className="label">
+            Name
+            <input className="input-field" value={name} onChange={e => setName(e.target.value)} />
+          </label>
+          <label className="label">
+            Email
+            <input className="input-field" type="email" value={email} onChange={e => setEmail(e.target.value)} />
+          </label>
+          <label className="label">
+            Profile Picture
+            <input type="file" accept="image/*" onChange={e => setPicture(e.target.files[0])} />
+          </label>
+          {success && <p className="body-copy" style={{ color: 'var(--color-green)' }}>Profile updated.</p>}
+          <ErrorBox error={error} />
+          <button type="submit" className="button-primary">Save Changes</button>
+        </form>
+      </section>
+    </main>
   );
 }

@@ -5,6 +5,10 @@ import { Spinner, ErrorBox } from '../components/Common';
 
 const POST_TYPES = ['announcement', 'project', 'event', 'update'];
 
+function prettyKey(value) {
+  return value.replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 export default function WardPostManage() {
   const { user } = useAuth();
   const [posts, setPosts] = useState([]);
@@ -58,66 +62,81 @@ export default function WardPostManage() {
   };
 
   return (
-    <div style={{ maxWidth: '720px', margin: '32px auto', padding: '0 16px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <h2>Ward Posts</h2>
-        <button onClick={() => setShowForm(!showForm)}>
-          {showForm ? 'Cancel' : '+ New Post'}
-        </button>
-      </div>
-
-      {showForm && (
-        <form onSubmit={handleCreate} style={{ padding: '16px', border: '1px solid #ccc', marginBottom: '24px' }}>
-          <h3 style={{ marginTop: 0 }}>Create Post</h3>
-          <div style={{ marginBottom: '12px' }}>
-            <label>Post Type</label><br />
-            <select value={form.post_type} onChange={set('post_type')}>
-              {POST_TYPES.map(t => <option key={t} value={t} style={{ textTransform: 'capitalize' }}>{t.replace('_', ' ')}</option>)}
-            </select>
+    <main className="page-shell page-pad">
+      <div className="card" style={{ maxWidth: '840px', margin: '0 auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '18px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '24px' }}>
+          <div>
+            <h1 className="page-heading">Ward Posts</h1>
+            <p className="body-copy">Share announcements and updates with your ward residents.</p>
           </div>
-          <div style={{ marginBottom: '12px' }}>
-            <label>Title *</label><br />
-            <input value={form.title} onChange={set('title')} required style={{ width: '100%' }} />
-          </div>
-          <div style={{ marginBottom: '12px' }}>
-            <label>Body *</label><br />
-            <textarea value={form.body} onChange={set('body')} required rows={5} style={{ width: '100%' }} />
-          </div>
-          <div style={{ marginBottom: '12px' }}>
-            <label>Image (optional)</label><br />
-            <input type="file" accept="image/*" onChange={e => setImage(e.target.files[0])} />
-          </div>
-          <div style={{ marginBottom: '12px' }}>
-            <label>Video (optional)</label><br />
-            <input type="file" accept="video/*" onChange={e => setVideo(e.target.files[0])} />
-          </div>
-          <ErrorBox error={formError} />
-          <button type="submit">Publish</button>
-        </form>
-      )}
-
-      {success && <p style={{ color: 'green' }}>Post published.</p>}
-      <ErrorBox error={error} />
-      {loading && <Spinner />}
-
-      {!loading && posts.length === 0 && <p>No posts yet. Create your first one!</p>}
-
-      {posts.map(post => (
-        <div key={post.id} style={{ borderBottom: '1px solid #ddd', padding: '16px 0' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <strong>{post.title}</strong>
-              {' '}
-              <span style={{ fontSize: '0.8em', textTransform: 'capitalize' }}>({post.post_type?.replace('_', ' ')})</span>
-              <br />
-              <small>{new Date(post.created_at).toLocaleString()}</small>
-              <p style={{ margin: '8px 0' }}>{post.body}</p>
-              {post.image && <img src={post.image} alt="Post" style={{ maxWidth: '100%' }} />}
-            </div>
-            <button onClick={() => handleDelete(post.id)} style={{ marginLeft: '16px', whiteSpace: 'nowrap' }}>Delete</button>
-          </div>
+          <button type="button" className="button-primary" onClick={() => setShowForm(!showForm)}>
+            {showForm ? 'Cancel' : '+ New Post'}
+          </button>
         </div>
-      ))}
-    </div>
+
+        {showForm && (
+          <div className="form-card" style={{ marginBottom: '24px' }}>
+            <h2 className="section-heading">Create Post</h2>
+            <form onSubmit={handleCreate} className="form-fieldset">
+              <label className="label">
+                Post Type
+                <select className="select-field" value={form.post_type} onChange={set('post_type')}>
+                  {POST_TYPES.map(t => <option key={t} value={t}>{prettyKey(t)}</option>)}
+                </select>
+              </label>
+              <label className="label">
+                Title *
+                <input className="input-field" value={form.title} onChange={set('title')} required />
+              </label>
+              <label className="label">
+                Body *
+                <textarea className="textarea-field" value={form.body} onChange={set('body')} required rows={5} />
+              </label>
+              <label className="label">
+                Image (optional)
+                <input type="file" accept="image/*" onChange={e => setImage(e.target.files[0])} />
+              </label>
+              <label className="label">
+                Video (optional)
+                <input type="file" accept="video/*" onChange={e => setVideo(e.target.files[0])} />
+              </label>
+              <ErrorBox error={formError} />
+              <button type="submit" className="button-primary">Publish</button>
+            </form>
+          </div>
+        )}
+
+        {success && <p className="body-copy" style={{ color: 'var(--color-green)', marginBottom: '18px' }}>Post published.</p>}
+        <ErrorBox error={error} />
+        {loading && <Spinner />}
+
+        {!loading && posts.length === 0 && (
+          <div className="empty-state-card">
+            <p className="screen-title">No posts yet</p>
+            <p className="body-copy">Create your first ward update to keep the community informed.</p>
+          </div>
+        )}
+
+        <div className="post-list">
+          {posts.map(post => (
+            <article key={post.id} className="post-card">
+              <div className="feed-card-title">
+                <strong>{post.title}</strong>
+                <small>({prettyKey(post.post_type)})</small>
+              </div>
+              <div className="feed-card-meta">
+                <span>{new Date(post.created_at).toLocaleString()}</span>
+              </div>
+              <p className="feed-card-copy">{post.body}</p>
+              {post.image && <img src={post.image} alt="Post" />}
+              {post.video && <video src={post.video} controls />}
+              <div className="post-actions">
+                <button type="button" className="button-secondary" onClick={() => handleDelete(post.id)}>Delete</button>
+              </div>
+            </article>
+          ))}
+        </div>
+      </div>
+    </main>
   );
 }

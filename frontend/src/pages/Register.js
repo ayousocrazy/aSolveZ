@@ -33,31 +33,36 @@ export default function Register() {
   };
 
   return (
-    <div style={{ maxWidth: '480px', margin: '48px auto', padding: '0 16px' }}>
-      <h2>Register</h2>
-      {success && <p style={{ color: 'green' }}>Registered! Redirecting to login…</p>}
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: '12px' }}>
-          <label>Full Name *</label><br />
-          <input value={form.name} onChange={set('name')} required style={{ width: '100%' }} />
-        </div>
-        <div style={{ marginBottom: '12px' }}>
-          <label>Phone *</label><br />
-          <input value={form.phone} onChange={set('phone')} required style={{ width: '100%' }} />
-        </div>
-        <div style={{ marginBottom: '12px' }}>
-          <label>Password *</label><br />
-          <input type="password" value={form.password} onChange={set('password')} required style={{ width: '100%' }} />
-        </div>
-        <div style={{ marginBottom: '12px' }}>
-          <label>Email (optional)</label><br />
-          <input type="email" value={form.email} onChange={set('email')} style={{ width: '100%' }} />
-        </div>
-        <GeoSelects value={form} onChange={setForm} required />
-        <ErrorBox error={error} />
-        <button type="submit" style={{ marginTop: '12px' }}>Create Account</button>
-      </form>
-      <p style={{ marginTop: '16px' }}>Already have an account? <Link to="/login">Login</Link></p>
-    </div>
+    <main className="page-shell page-pad">
+      <section className="card" style={{ maxWidth: '540px', margin: '0 auto' }}>
+        <h1 className="page-heading">Register</h1>
+        <p className="body-copy" style={{ marginBottom: '24px' }}>Create an account to submit issues and stay connected with your ward office.</p>
+        {success && <p className="body-copy" style={{ color: 'var(--color-green)', marginBottom: '18px' }}>Registered! Redirecting to login…</p>}
+        <form onSubmit={handleSubmit} className="form-fieldset">
+          <label className="label">
+            Full Name *
+            <input className="input-field" value={form.name} onChange={set('name')} required />
+          </label>
+          <label className="label">
+            Phone *
+            <input className="input-field" value={form.phone} onChange={set('phone')} required />
+          </label>
+          <label className="label">
+            Password *
+            <input className="input-field" type="password" value={form.password} onChange={set('password')} required />
+          </label>
+          <label className="label">
+            Email (optional)
+            <input className="input-field" type="email" value={form.email} onChange={set('email')} />
+          </label>
+          <GeoSelects value={form} onChange={setForm} required />
+          <ErrorBox error={error} />
+          <button type="submit" className="button-primary">Create Account</button>
+        </form>
+        <p className="body-copy" style={{ marginTop: '18px' }}>
+          Already have an account? <Link to="/login">Login</Link>
+        </p>
+      </section>
+    </main>
   );
 }
