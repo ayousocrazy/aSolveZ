@@ -2,6 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { getWardAnalytics } from '../api';
 import { Spinner, ErrorBox } from '../components/Common';
 
+function StatRow({ label, value }) {
+  return (
+    <div className="stat-row">
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
 export default function WardAnalytics() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -9,39 +18,63 @@ export default function WardAnalytics() {
 
   useEffect(() => {
     getWardAnalytics()
-      .then(d => { setData(d); setLoading(false); })
-      .catch(e => { setError(e); setLoading(false); });
+      .then((d) => { setData(d); setLoading(false); })
+      .catch((e) => { setError(e); setLoading(false); });
   }, []);
 
   if (loading) return <Spinner />;
 
   return (
-    <div style={{ maxWidth: '560px', margin: '32px auto', padding: '0 16px' }}>
-      <h2>Analytics</h2>
-      <ErrorBox error={error} />
-      {data && (
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <tbody>
-            {[
-              ['Municipality', data.municipality],
-              ['Ward Number', data.ward_number],
-              ['Total Issues', data.total_issues],
-              ['Pending', data.pending],
-              ['Acknowledged', data.acknowledged],
-              ['Completed', data.completed],
-              ['Completion Rate', data.total_issues > 0
-                ? `${Math.round((data.completed / data.total_issues) * 100)}%`
-                : 'N/A'],
-              ['False Resolution Reports', data.false_resolution_reports],
-            ].map(([label, value]) => (
-              <tr key={label} style={{ borderBottom: '1px solid #eee' }}>
-                <td style={{ padding: '10px 0', color: '#555' }}>{label}</td>
-                <td style={{ padding: '10px 0', fontWeight: 'bold' }}>{value}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
+    <main className="page-shell" style={{ padding: '32px 0' }}>
+      <div className="card" style={{ maxWidth: '760px', margin: '0 auto' }}>
+        <div className="card-header" style={{ gap: '16px', alignItems: 'center' }}>
+          <div className="seal" style={{ width: '72px', height: '72px' }}>
+            <span className="seal-icon">A</span>
+          </div>
+          <div>
+            <p className="screen-title">Ward analytics</p>
+            <p className="body-copy">A clear view of issue trends for your ward office.</p>
+          </div>
+        </div>
+
+        <ErrorBox error={error} />
+
+        {data ? (
+          <div className="analytics-grid" style={{ marginTop: '24px' }}>
+            <div className="analytics-panel">
+              <p className="section-heading">Ward summary</p>
+              <div className="stat-card">
+                <p className="body-copy" style={{ marginBottom: '10px' }}>Municipality</p>
+                <p className="screen-title" style={{ fontSize: '24px', margin: 0 }}>{data.municipality}</p>
+              </div>
+              <div className="stat-card">
+                <p className="body-copy" style={{ marginBottom: '10px' }}>Ward number</p>
+                <p className="screen-title" style={{ fontSize: '24px', margin: 0 }}>Ward {data.ward_number}</p>
+              </div>
+            </div>
+
+            <div className="analytics-panel">
+              <p className="section-heading">Key figures</p>
+              <div className="stats-list">
+                <StatRow label="Total issues" value={data.total_issues} />
+                <StatRow label="Pending" value={data.pending} />
+                <StatRow label="Acknowledged" value={data.acknowledged} />
+                <StatRow label="Completed" value={data.completed} />
+                <StatRow label="Completion rate" value={data.total_issues > 0 ? `${Math.round((data.completed / data.total_issues) * 100)}%` : 'N/A'} />
+                <StatRow label="False resolution reports" value={data.false_resolution_reports} />
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="empty-state-card" style={{ marginTop: '24px' }}>
+            <div className="seal" style={{ width: '84px', height: '84px', background: 'var(--color-bg-tertiary)', color: 'var(--color-text-tertiary)' }}>
+              <span className="seal-icon">✓</span>
+            </div>
+            <p className="screen-title" style={{ marginTop: '20px' }}>Analytics not available yet</p>
+            <p className="body-copy">Your ward analytics page will show once your office has issued its first complaint summary.</p>
+          </div>
+        )}
+      </div>
+    </main>
   );
 }
