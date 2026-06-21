@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { getIssues } from '../api';
 import { useAuth } from '../context/AuthContext';
 import { Spinner, ErrorBox } from '../components/Common';
 
 const CATEGORIES = ['road','water','electricity','corruption','health','education','garbage','safety','other'];
-const STATUSES = ['pending','acknowledged','completed'];
+const STATUSES   = ['pending','acknowledged','completed'];
 
 function prettyKey(value) {
   return (value || '').replace('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase());
@@ -28,147 +28,6 @@ const STATUS_STYLES = {
   acknowledged: { bg: '#e3f2fd', color: '#0d47a1' },
   completed:    { bg: '#e8f5e9', color: '#1b5e20' },
 };
-
-/* ─── SVG Illustrations ─────────────────────────────────── */
-
-function RoadIllustration() {
-  return (
-    <svg viewBox="0 0 640 200" xmlns="http://www.w3.org/2000/svg" style={styles.postImg}>
-      <rect width="640" height="200" fill="#555"/>
-      <rect x="0" y="140" width="640" height="60" fill="#444"/>
-      <rect x="0" y="60" width="640" height="80" fill="#606060"/>
-      <ellipse cx="280" cy="145" rx="60" ry="28" fill="#333"/>
-      <ellipse cx="280" cy="145" rx="50" ry="22" fill="#222"/>
-      <line x1="310" y1="90" x2="295" y2="128" stroke="#ff4500" strokeWidth="2.5" strokeDasharray="4,3"/>
-      <circle cx="310" cy="86" r="14" fill="#ff4500"/>
-      <text x="310" y="91" textAnchor="middle" fill="white" fontSize="13" fontWeight="bold">!</text>
-      <rect x="8" y="155" width="100" height="16" rx="4" fill="rgba(0,0,0,0.55)"/>
-      <text x="58" y="167" textAnchor="middle" fill="white" fontSize="11">Sankhamul Rd</text>
-      <rect x="400" y="70" width="200" height="50" rx="6" fill="rgba(0,0,0,0.5)"/>
-      <text x="500" y="91" textAnchor="middle" fill="#ffd" fontSize="11" fontWeight="500">📍 Ward 4, Kathmandu</text>
-      <text x="500" y="108" textAnchor="middle" fill="#aaa" fontSize="10">Reported by 12 residents</text>
-    </svg>
-  );
-}
-
-function WaterIllustration() {
-  return (
-    <svg viewBox="0 0 640 200" xmlns="http://www.w3.org/2000/svg" style={styles.postImg}>
-      <rect width="640" height="200" fill="#e3f2fd"/>
-      <rect x="0" y="120" width="640" height="80" fill="#bbdefb"/>
-      <circle cx="80" cy="90" r="50" fill="#90caf9" opacity="0.4"/>
-      <rect x="260" y="60" width="120" height="90" rx="8" fill="#1565c0"/>
-      <rect x="275" y="75" width="90" height="60" rx="4" fill="#1976d2"/>
-      <text x="320" y="113" textAnchor="middle" fill="white" fontSize="28">🚰</text>
-      <line x1="380" y1="130" x2="440" y2="130" stroke="#0d47a1" strokeWidth="3" strokeDasharray="8,4"/>
-      <circle cx="450" cy="130" r="10" fill="#ef5350"/>
-      <text x="450" y="135" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold">✕</text>
-      <rect x="470" y="115" width="150" height="30" rx="6" fill="rgba(0,0,0,0.1)"/>
-      <text x="545" y="135" textAnchor="middle" fill="#0d47a1" fontSize="12" fontWeight="500">11 days without supply</text>
-      <text x="320" y="185" textAnchor="middle" fill="#0d47a1" fontSize="11">Balaju, Ward 7 · Last supply: June 9</text>
-    </svg>
-  );
-}
-
-function ElectricityIllustration() {
-  return (
-    <svg viewBox="0 0 640 200" xmlns="http://www.w3.org/2000/svg" style={styles.postImg}>
-      <rect width="640" height="200" fill="#1a1a2e"/>
-      <rect x="0" y="150" width="640" height="50" fill="#111"/>
-      <rect x="0" y="130" width="640" height="22" fill="#222"/>
-      <line x1="0" y1="152" x2="640" y2="152" stroke="#fff" strokeWidth="1.5" strokeDasharray="40,20" opacity="0.3"/>
-      {[60, 200, 340, 480].map(x => (
-        <g key={x} opacity="0.25">
-          <rect x={x} y="60" width="6" height="80" fill="#888"/>
-          <circle cx={x + 3} cy="57" r="14" fill="#555"/>
-          <circle cx={x + 3} cy="57" r="8" fill="#333"/>
-        </g>
-      ))}
-      <text x="320" y="115" textAnchor="middle" fill="#666" fontSize="28">🌑</text>
-      <rect x="180" y="25" width="280" height="28" rx="6" fill="rgba(255,200,0,0.12)"/>
-      <text x="320" y="44" textAnchor="middle" fill="#ffd54f" fontSize="13" fontWeight="500">⚠ No street lighting · Koteshwor Ring Rd</text>
-      <text x="320" y="185" textAnchor="middle" fill="#555" fontSize="11">Ward 12 · 3 muggings reported after dark</text>
-    </svg>
-  );
-}
-
-function GarbageIllustration() {
-  return (
-    <svg viewBox="0 0 640 200" xmlns="http://www.w3.org/2000/svg" style={styles.postImg}>
-      <rect width="640" height="200" fill="#f1f8e9"/>
-      <rect x="0" y="140" width="640" height="60" fill="#dcedc8"/>
-      <ellipse cx="200" cy="155" rx="130" ry="38" fill="#8d6e63"/>
-      <ellipse cx="200" cy="148" rx="110" ry="30" fill="#795548"/>
-      <text x="125" y="138" textAnchor="middle" fontSize="20">🗑</text>
-      <text x="188" y="133" textAnchor="middle" fontSize="22">🗑</text>
-      <text x="253" y="140" textAnchor="middle" fontSize="18">📦</text>
-      <circle cx="145" cy="105" r="12" fill="#4caf50" opacity="0.7"/>
-      <circle cx="175" cy="98" r="8" fill="#8bc34a" opacity="0.7"/>
-      <circle cx="245" cy="95" r="14" fill="#4caf50" opacity="0.4"/>
-      <rect x="370" y="50" width="240" height="80" rx="8" fill="rgba(0,0,0,0.07)"/>
-      <text x="490" y="75" textAnchor="middle" fill="#33691e" fontSize="12" fontWeight="500">🗓 Last collection: June 11</text>
-      <text x="490" y="95" textAnchor="middle" fill="#558b2f" fontSize="11">9 days without pickup</text>
-      <text x="490" y="115" textAnchor="middle" fill="#ff6f00" fontSize="11">⚠ Monsoon risk: disease outbreak</text>
-      <text x="320" y="185" textAnchor="middle" fill="#558b2f" fontSize="11">Asan Market area · Ward 2</text>
-    </svg>
-  );
-}
-
-const ILLUSTRATIONS = {
-  road: RoadIllustration,
-  water: WaterIllustration,
-  electricity: ElectricityIllustration,
-  garbage: GarbageIllustration,
-};
-
-/* ─── Dummy posts (shown when API returns nothing or while loading) ─── */
-
-const DUMMY_POSTS = [
-  {
-    id: 'demo-1',
-    category: 'road',
-    status: 'acknowledged',
-    description: "Massive pothole on Sankhamul-Tinkune road has swallowed two motorbikes this week - city still hasn't responded. The pothole near Sankhamul bridge has been growing for 3 months.",
-    ward_number: 4,
-    created_at: new Date(Date.now() - 6 * 3600 * 1000).toISOString(),
-    vote_score: 847,
-    comment_count: 234,
-    author: 'ramesh_tamang',
-  },
-  {
-    id: 'demo-2',
-    category: 'water',
-    status: 'pending',
-    description: "Drinking water supply cut for 11 days straight in Balaju area - no official notice given to residents. KUKL has not given any explanation. We are forced to buy water at Rs 800 per jar.",
-    ward_number: 7,
-    created_at: new Date(Date.now() - 1 * 86400 * 1000).toISOString(),
-    vote_score: 512,
-    comment_count: 189,
-    author: 'sunita_rai',
-  },
-  {
-    id: 'demo-3',
-    category: 'electricity',
-    status: 'completed',
-    description: "Street lights on the entire Koteshwor ring road stretch have been out for 3 weeks - muggings reported. Update: NEA finally fixed the transformer on June 18! Lights restored.",
-    ward_number: 12,
-    created_at: new Date(Date.now() - 2 * 86400 * 1000).toISOString(),
-    vote_score: 301,
-    comment_count: 97,
-    author: 'bikash_giri',
-  },
-  {
-    id: 'demo-4',
-    category: 'garbage',
-    status: 'pending',
-    description: "Garbage pile near Asan market has not been collected in 9 days - health hazard with monsoon approaching. The pile is spilling onto the footpath and the smell is unbearable.",
-    ward_number: 2,
-    created_at: new Date(Date.now() - 3 * 86400 * 1000).toISOString(),
-    vote_score: 198,
-    comment_count: 143,
-    author: 'anita_shrestha',
-  },
-];
 
 /* ─── Styles ─────────────────────────────────────────────── */
 
@@ -274,7 +133,7 @@ const styles = {
     borderRadius: '2px',
     transition: 'color 0.1s',
   },
-  voteBtnUpActive: { color: '#ff4500' },
+  voteBtnUpActive:   { color: '#ff4500' },
   voteBtnDownActive: { color: '#7193ff' },
   voteCount: {
     fontSize: '12px',
@@ -302,19 +161,12 @@ const styles = {
     color: '#1c1c1c',
   },
   dot: { color: '#ccc' },
-  postTitle: {
-    fontSize: '18px',
-    fontWeight: 500,
-    color: '#222',
-    marginBottom: '8px',
-    lineHeight: 1.4,
-  },
   flair: {
     display: 'inline-block',
     fontSize: '11px',
     padding: '2px 10px',
     borderRadius: '20px',
-    marginRight: '8px',
+    marginRight: '6px',
     fontWeight: 700,
     verticalAlign: 'middle',
   },
@@ -327,18 +179,37 @@ const styles = {
     marginLeft: '4px',
     verticalAlign: 'middle',
   },
-  postImg: {
-    width: '100%',
-    maxHeight: '240px',
-    borderRadius: '4px',
-    marginBottom: '8px',
-    display: 'block',
-  },
-  postPreview: {
+  postDescription: {
     fontSize: '14px',
-    color: '#474748',
+    color: '#1c1c1c',
     lineHeight: 1.6,
-    marginBottom: '8px',
+    margin: '8px 0 10px',
+  },
+  moreOverlay: {
+    position: 'absolute',
+    inset: 0,
+    background: 'rgba(0,0,0,0.55)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: '#fff',
+    fontSize: '20px',
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
+  videoPlayIcon: {
+    position: 'absolute',
+    width: '36px',
+    height: '36px',
+    background: 'rgba(255,255,255,0.85)',
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '14px',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
   },
   postFooter: {
     display: 'flex',
@@ -359,6 +230,7 @@ const styles = {
     background: 'none',
     cursor: 'pointer',
     transition: 'background 0.1s, color 0.1s',
+    textDecoration: 'none',
   },
   wardBadge: {
     fontSize: '11px',
@@ -372,23 +244,138 @@ const styles = {
     background: '#fff',
     border: '1px solid #ccc',
     borderRadius: '4px',
-    padding: '40px',
+    padding: '60px 40px',
     textAlign: 'center',
     color: '#7c7c7c',
   },
-  viewLink: {
-    color: '#0079d3',
+  emptyIcon: {
+    fontSize: '40px',
+    marginBottom: '12px',
+  },
+  emptyTitle: {
     fontWeight: 700,
-    fontSize: '12px',
-    textDecoration: 'none',
+    fontSize: '16px',
+    color: '#1c1c1c',
+    marginBottom: '6px',
+  },
+  emptyText: {
+    fontSize: '13px',
+    color: '#7c7c7c',
+    marginBottom: '16px',
   },
 };
 
-/* ─── VoteButton ─────────────────────────────────────────── */
+/* ─── Media grid layout configs ─────────────────────────── */
 
-function VoteButtons({ initialScore }) {
+const MEDIA_GRID_BASE = {
+  display: 'grid',
+  gap: '2px',
+  borderRadius: '4px',
+  overflow: 'hidden',
+  marginBottom: '10px',
+};
+
+const MEDIA_GRID_CONFIG = {
+  1: {
+    grid: { ...MEDIA_GRID_BASE, gridTemplateColumns: '1fr' },
+    cell: { height: '260px' },
+    firstCell: null,
+  },
+  2: {
+    grid: { ...MEDIA_GRID_BASE, gridTemplateColumns: '1fr 1fr' },
+    cell: { height: '200px' },
+    firstCell: null,
+  },
+  3: {
+    grid: { ...MEDIA_GRID_BASE, gridTemplateColumns: '2fr 1fr', gridTemplateRows: '1fr 1fr' },
+    cell: { height: '130px' },
+    firstCell: { gridRow: 'span 2', height: '264px' },
+  },
+  4: {
+    grid: { ...MEDIA_GRID_BASE, gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr' },
+    cell: { height: '140px' },
+    firstCell: null,
+  },
+  5: {
+    grid: { ...MEDIA_GRID_BASE, gridTemplateColumns: 'repeat(3, 1fr)' },
+    cell: { height: '120px' },
+    firstCell: null,
+  },
+};
+
+/* ─── MediaGrid ──────────────────────────────────────────── */
+
+function MediaGrid({ image, video }) {
+  // Build a flat list of media items from the single image / video fields.
+  // In future you can extend this to accept arrays.
+  const items = [];
+  if (image) items.push({ type: 'image', src: image });
+  if (video) items.push({ type: 'video', src: video });
+
+  if (items.length === 0) return null;
+
+  const total        = items.length;
+  const configKey    = Math.min(total, 5);
+  const cfg          = MEDIA_GRID_CONFIG[configKey];
+  const displayItems = items.slice(0, 5);
+  const extra        = total > 5 ? total - 5 : 0;
+
+  const cellBase = {
+    position: 'relative',
+    background: '#edeff1',
+    overflow: 'hidden',
+  };
+
+  const mediaFill = {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover',
+    display: 'block',
+  };
+
+  return (
+    <div style={cfg.grid} onClick={e => e.stopPropagation()}>
+      {displayItems.map((item, i) => {
+        const isFirst = i === 0;
+        const isLast  = i === displayItems.length - 1;
+        const sizeStyle = (isFirst && cfg.firstCell) ? cfg.firstCell : cfg.cell;
+
+        return (
+          <div key={i} style={{ ...cellBase, ...sizeStyle }}>
+            {item.type === 'image' ? (
+              <img src={item.src} alt={`Issue media ${i + 1}`} style={mediaFill} />
+            ) : (
+              <>
+                <div style={{
+                  width: '100%', height: '100%',
+                  background: '#1c1c1c',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {/* Poster-only — no autoplay */}
+                  <video src={item.src} style={mediaFill} muted preload="metadata" />
+                </div>
+                <div style={styles.videoPlayIcon}>▶</div>
+              </>
+            )}
+
+            {/* "+N more" overlay on the last visible cell when there are hidden items */}
+            {isLast && extra > 0 && (
+              <div style={styles.moreOverlay}>+{extra} more</div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ─── VoteButtons ────────────────────────────────────────── */
+
+function VoteButtons({ initialScore, userVote }) {
   const [score, setScore] = useState(initialScore || 0);
-  const [voted, setVoted] = useState(null); // 'up' | 'down' | null
+  const [voted, setVoted] = useState(
+    userVote === 1 ? 'up' : userVote === -1 ? 'down' : null
+  );
 
   const handleVote = (dir) => {
     if (voted === dir) {
@@ -409,7 +396,11 @@ function VoteButtons({ initialScore }) {
         onClick={(e) => { e.stopPropagation(); handleVote('up'); }}
         aria-label="Upvote"
       >▲</button>
-      <span style={{ ...styles.voteCount, ...(voted === 'up' ? { color: '#ff4500' } : voted === 'down' ? { color: '#7193ff' } : {}) }}>
+      <span style={{
+        ...styles.voteCount,
+        ...(voted === 'up'   ? { color: '#ff4500' } :
+            voted === 'down' ? { color: '#7193ff' } : {}),
+      }}>
         {score >= 1000 ? `${(score / 1000).toFixed(1)}k` : score}
       </span>
       <button
@@ -424,62 +415,62 @@ function VoteButtons({ initialScore }) {
 /* ─── IssueCard ──────────────────────────────────────────── */
 
 function IssueCard({ issue }) {
+  const navigate = useNavigate();
   const [hovered, setHovered] = useState(false);
-  const [saved, setSaved] = useState(false);
 
-  const flairStyle = FLAIR_COLORS[issue.category] || FLAIR_COLORS.other;
-  const statusStyle = STATUS_STYLES[issue.status] || { bg: '#eceff1', color: '#37474f' };
-  const Illustration = ILLUSTRATIONS[issue.category];
-  const timeAgo = getTimeAgo(issue.created_at);
+  const flairStyle  = FLAIR_COLORS[issue.category] || FLAIR_COLORS.other;
+  const statusStyle = STATUS_STYLES[issue.status]   || { bg: '#eceff1', color: '#37474f' };
+  const timeAgo     = getTimeAgo(issue.created_at);
 
   return (
     <article
       style={{ ...styles.post, ...(hovered ? styles.postHover : {}) }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onClick={() => navigate(`/issues/${issue.id}`)}
+      role="button"
+      aria-label={`View issue in Ward ${issue.ward_number}`}
     >
-      <VoteButtons initialScore={issue.vote_score ?? 0} />
+      <VoteButtons
+        initialScore={issue.vote_score ?? 0}
+        userVote={issue.user_vote ?? null}
+      />
 
       <div style={styles.postBody}>
         {/* Meta top */}
         <div style={styles.postMetaTop}>
           <span style={styles.wardLabel}>Ward {issue.ward_number}</span>
           <span style={styles.dot}>•</span>
-          <span>Posted by u/{issue.author || 'anonymous'}</span>
+          <span>Posted by u/{issue.author_name || 'anonymous'}</span>
           <span style={styles.dot}>·</span>
           <span>{timeAgo}</span>
-          <span
-            style={{ ...styles.statusChip, background: statusStyle.bg, color: statusStyle.color }}
-          >{prettyKey(issue.status)}</span>
+          <span style={{ ...styles.statusChip, background: statusStyle.bg, color: statusStyle.color }}>
+            {prettyKey(issue.status)}
+          </span>
         </div>
 
-        {/* Title */}
-        <div style={styles.postTitle}>
+        {/* Category flair */}
+        <div style={{ marginBottom: '8px' }}>
           <span style={{ ...styles.flair, background: flairStyle.bg, color: flairStyle.color }}>
             {prettyKey(issue.category)}
           </span>
-          {issue.description?.slice(0, 100)}
-          {issue.description?.length > 100 ? '…' : ''}
         </div>
 
-        {/* Illustration */}
-        {Illustration && <Illustration />}
+        {/* Full description */}
+        <p style={styles.postDescription}>{issue.description}</p>
 
-        {/* Preview text */}
-        <p style={styles.postPreview}>
-          {issue.description?.slice(0, 220)}{issue.description?.length > 220 ? '…' : ''}
-        </p>
+        {/* Media grid */}
+        <MediaGrid image={issue.image} video={issue.video} />
 
-        {/* Footer */}
+        {/* Footer — comments only, share/save removed */}
         <div style={styles.postFooter}>
-          <Link to={`/issues/${issue.id}`} style={styles.footerBtn} onClick={e => e.stopPropagation()}>
+          <Link
+            to={`/issues/${issue.id}`}
+            style={styles.footerBtn}
+            onClick={e => e.stopPropagation()}
+          >
             💬 {issue.comment_count ?? 0} Comments
           </Link>
-          <button style={styles.footerBtn}>🔗 Share</button>
-          <button
-            style={{ ...styles.footerBtn, color: saved ? '#ff4500' : '#878a8c' }}
-            onClick={(e) => { e.stopPropagation(); setSaved(s => !s); }}
-          >{saved ? '🔖 Saved' : '🔖 Save'}</button>
           <span style={styles.wardBadge}>Ward {issue.ward_number}</span>
         </div>
       </div>
@@ -487,14 +478,40 @@ function IssueCard({ issue }) {
   );
 }
 
+/* ─── Empty state ────────────────────────────────────────── */
+
+function EmptyState({ hasFilters, user }) {
+  return (
+    <div style={styles.emptyCard}>
+      <div style={styles.emptyIcon}>📭</div>
+      {hasFilters ? (
+        <>
+          <p style={styles.emptyTitle}>No issues match your filters</p>
+          <p style={styles.emptyText}>Try adjusting the category or status filter.</p>
+        </>
+      ) : (
+        <>
+          <p style={styles.emptyTitle}>No complaints filed yet</p>
+          <p style={styles.emptyText}>
+            Your ward has no reported issues. Be the first to report one.
+          </p>
+          {user && !user.is_ward_account && (
+            <Link to="/issues/new" style={styles.submitBtn}>+ Submit Issue</Link>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 /* ─── Helpers ────────────────────────────────────────────── */
 
 function getTimeAgo(dateStr) {
-  const diff = Date.now() - new Date(dateStr).getTime();
+  const diff  = Date.now() - new Date(dateStr).getTime();
   const mins  = Math.floor(diff / 60000);
   const hours = Math.floor(mins / 60);
   const days  = Math.floor(hours / 24);
-  if (days  > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
+  if (days  > 0) return `${days} day${days  > 1 ? 's' : ''} ago`;
   if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
   return `${mins} minute${mins !== 1 ? 's' : ''} ago`;
 }
@@ -503,28 +520,32 @@ function getTimeAgo(dateStr) {
 
 export default function IssueList() {
   const { user } = useAuth();
-  const [issues, setIssues] = useState([]);
+  const [issues,  setIssues]  = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error,   setError]   = useState(null);
   const [filters, setFilters] = useState({ category: '', status: '', sort: 'new' });
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     const params = {};
     if (filters.category) params.category = filters.category;
     if (filters.status)   params.status   = filters.status;
     if (filters.sort)     params.sort     = filters.sort;
-    if (user?.ward)       params.ward     = user.ward;
+    // Ward scoping is enforced by the backend — no need to send ward param.
 
     getIssues(params)
       .then(d => { setIssues(d.results || d); setLoading(false); })
       .catch(err => { setError(err); setLoading(false); });
   }, [filters, user]);
 
-  const setFilter = (field) => (e) => setFilters(f => ({ ...f, [field]: e.target.value }));
+  const setFilter = (field) => (e) =>
+    setFilters(f => ({ ...f, [field]: e.target.value }));
 
-  /* Fall back to dummy posts when API is empty */
-  const displayIssues = (!loading && issues.length === 0 && !error) ? DUMMY_POSTS : issues;
+  const hasFilters = !!(filters.category || filters.status);
+  const wardLabel  = user?.ward_display?.number
+    ? `Ward ${user.ward_display.number}`
+    : 'All Wards';
 
   return (
     <main style={styles.shell}>
@@ -533,10 +554,8 @@ export default function IssueList() {
         {/* Feed header */}
         <div style={styles.feedHeader}>
           <div>
-            <h1 style={styles.feedTitle}>
-              🗺 r/WardIssues
-            </h1>
-            <p style={styles.feedSub}>Community issues · {user?.ward ? `Ward ${user.ward}` : 'All Wards'}</p>
+            <h1 style={styles.feedTitle}>🗺 r/WardIssues</h1>
+            <p style={styles.feedSub}>Community issues · {wardLabel}</p>
           </div>
           {user && !user.is_ward_account && (
             <Link to="/issues/new" style={styles.submitBtn}>+ Submit Issue</Link>
@@ -557,26 +576,25 @@ export default function IssueList() {
           <select style={styles.filterSelect} value={filters.sort} onChange={setFilter('sort')}>
             <option value="new">🆕 New</option>
             <option value="top">⬆ Top Voted</option>
-            <option value="hot">🔥 Hot</option>
           </select>
         </div>
 
-        {/* Loading / Error */}
+        {/* Loading */}
         {loading && <Spinner />}
+
+        {/* Error */}
         <ErrorBox error={error} />
 
-        {/* Posts */}
-        {displayIssues.map(issue => (
+        {/* Issue cards */}
+        {!loading && !error && issues.map(issue => (
           <IssueCard key={issue.id} issue={issue} />
         ))}
 
-        {/* True empty state (after filtering) */}
-        {!loading && issues.length === 0 && (filters.category || filters.status) && (
-          <div style={styles.emptyCard}>
-            <p style={{ fontWeight: 700, marginBottom: '6px' }}>No issues found</p>
-            <p style={{ fontSize: '13px' }}>Try changing the filters or submit a new issue for your ward.</p>
-          </div>
+        {/* Empty state */}
+        {!loading && !error && issues.length === 0 && (
+          <EmptyState hasFilters={hasFilters} user={user} />
         )}
+
       </div>
     </main>
   );

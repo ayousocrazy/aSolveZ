@@ -144,10 +144,27 @@ class IssueListCreateView(generics.ListCreateAPIView):
             'author', 'province', 'district', 'municipality', 'ward'
         ).prefetch_related('votes', 'comments')
 
+        user = self.request.user
+
+        # ----------------------------------------------------------------
+        # WARD SCOPING — enforced server-side, not by query params.
+        #
+        # If the authenticated user has a ward assigned (citizen who picked
+        # their ward on registration, or a ward account), scope the feed to
+        # that ward only.  Unauthenticated visitors and users without a ward
+        # see all issues and may still narrow by the filters below.
+        # ----------------------------------------------------------------
+        if user.is_authenticated and user.ward_id:
+            qs = qs.filter(ward_id=user.ward_id)
+        else:
+            # Only allow manual ?ward= filter for users without a ward assigned
+            ward = self.request.query_params.get('ward')
+            if ward:
+                qs = qs.filter(ward_id=ward)
+
         province = self.request.query_params.get('province')
         district = self.request.query_params.get('district')
         municipality = self.request.query_params.get('municipality')
-        ward = self.request.query_params.get('ward')
         category = self.request.query_params.get('category')
         status_filter = self.request.query_params.get('status')
         sort = self.request.query_params.get('sort', 'new')
@@ -158,8 +175,6 @@ class IssueListCreateView(generics.ListCreateAPIView):
             qs = qs.filter(district_id=district)
         if municipality:
             qs = qs.filter(municipality_id=municipality)
-        if ward:
-            qs = qs.filter(ward_id=ward)
         if category:
             qs = qs.filter(category=category)
         if status_filter:
