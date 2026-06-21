@@ -102,11 +102,17 @@ class MeSerializer(serializers.ModelSerializer):
     def get_ward_display(self, obj):
         if obj.ward:
             return {
-                'id': obj.ward.id,
-                'number': obj.ward.number,
-                'municipality': obj.ward.municipality.name,
-                'district': obj.ward.municipality.district.name,
-                'province': obj.ward.municipality.district.province.name,
+                "id": obj.ward.id,
+                "number": obj.ward.number,
+
+                "municipality_id": obj.ward.municipality.id,
+                "municipality": obj.ward.municipality.name,
+
+                "district_id": obj.ward.municipality.district.id,
+                "district": obj.ward.municipality.district.name,
+
+                "province_id": obj.ward.municipality.district.province.id,
+                "province": obj.ward.municipality.district.province.name,
             }
         return None
 

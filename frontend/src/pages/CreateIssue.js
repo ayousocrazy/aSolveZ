@@ -17,44 +17,31 @@ export default function CreateIssue() {
   const [locationLabel, setLocationLabel] = useState('Loading your location…');
 
   useEffect(() => {
-    // The user object from /api/auth/me/ should have ward info.
-    // We resolve the full chain: ward → municipality → district → province
-    async function resolveLocation() {
-      // Try direct fields first (if MeSerializer includes them)
-      if (user?.province && user?.district && user?.municipality && user?.ward) {
-        setLocation({
-          province: user.province,
-          district: user.district,
-          municipality: user.municipality,
-          ward: user.ward,
-        });
-        setLocationLabel(buildLabel(user));
-        return;
-      }
+  function resolveLocation() {
+    console.log("USER:", user);
 
-      // Fallback: if ward ID is available, fetch up the chain
-      if (user?.ward) {
-        try {
-          const wards = await getWards();
-          const wardList = wards.results || wards;
-          const ward = wardList.find(w => w.id === user.ward);
-          if (ward) {
-            setLocation({
-              province: ward.province || ward.municipality_detail?.district_detail?.province_id,
-              district: ward.district || ward.municipality_detail?.district_id,
-              municipality: ward.municipality,
-              ward: ward.id,
-            });
-            setLocationLabel(`Ward ${ward.number}, ${ward.municipality_name || ''}`);
-            return;
-          }
-        } catch {}
-      }
+    if (user?.ward_display) {
+      setLocation({
+        province: user.ward_display.province_id,
+        district: user.ward_display.district_id,
+        municipality: user.ward_display.municipality_id,
+        ward: user.ward_display.id,
+      });
 
-      setLocationLabel('Could not detect location — contact support.');
+      setLocationLabel(
+        `Ward ${user.ward_display.number}, ${user.ward_display.municipality}`
+      );
+
+      return;
     }
-    if (user) resolveLocation();
-  }, [user]);
+
+    setLocationLabel("Could not detect location — contact support.");
+  }
+
+  if (user) {
+    resolveLocation();
+  }
+}, [user]);
 
   function buildLabel(u) {
     const parts = [];
