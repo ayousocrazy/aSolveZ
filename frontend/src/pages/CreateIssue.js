@@ -17,31 +17,31 @@ export default function CreateIssue() {
   const [locationLabel, setLocationLabel] = useState('Loading your location…');
 
   useEffect(() => {
-  function resolveLocation() {
-    console.log("USER:", user);
+    function resolveLocation() {
+      console.log("USER:", user);
 
-    if (user?.ward_display) {
-      setLocation({
-        province: user.ward_display.province_id,
-        district: user.ward_display.district_id,
-        municipality: user.ward_display.municipality_id,
-        ward: user.ward_display.id,
-      });
+      if (user?.ward_display) {
+        setLocation({
+          province: user.ward_display.province_id,
+          district: user.ward_display.district_id,
+          municipality: user.ward_display.municipality_id,
+          ward: user.ward_display.id,
+        });
 
-      setLocationLabel(
-        `Ward ${user.ward_display.number}, ${user.ward_display.municipality}`
-      );
+        setLocationLabel(
+          `Ward ${user.ward_display.number}, ${user.ward_display.municipality}`
+        );
 
-      return;
+        return;
+      }
+
+      setLocationLabel("Could not detect location — contact support.");
     }
 
-    setLocationLabel("Could not detect location — contact support.");
-  }
-
-  if (user) {
-    resolveLocation();
-  }
-}, [user]);
+    if (user) {
+      resolveLocation();
+    }
+  }, [user]);
 
   function buildLabel(u) {
     const parts = [];
