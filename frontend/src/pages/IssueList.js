@@ -185,6 +185,12 @@ const styles = {
     lineHeight: 1.6,
     margin: '8px 0 10px',
   },
+  readMore: {
+    color: '#0079d3',
+    fontWeight: 700,
+    marginLeft: '4px',
+    whiteSpace: 'nowrap',
+  },
   moreOverlay: {
     position: 'absolute',
     inset: 0,
@@ -421,6 +427,7 @@ function IssueCard({ issue }) {
   const flairStyle  = FLAIR_COLORS[issue.category] || FLAIR_COLORS.other;
   const statusStyle = STATUS_STYLES[issue.status]   || { bg: '#eceff1', color: '#37474f' };
   const timeAgo     = getTimeAgo(issue.created_at);
+  const { display: shortDescription, truncated } = truncateWords(issue.description, 150);
 
   return (
     <article
@@ -456,8 +463,14 @@ function IssueCard({ issue }) {
           </span>
         </div>
 
-        {/* Full description */}
-        <p style={styles.postDescription}>{issue.description}</p>
+        {/* Description, capped at 150 words. The whole card is already a
+            click target that routes to the issue detail page, so no extra
+            navigation wiring is needed here — "Read more" is just a visual
+            cue, not a separate link. */}
+        <p style={styles.postDescription}>
+          {shortDescription}
+          {truncated && <span style={styles.readMore}>Read more</span>}
+        </p>
 
         {/* Media grid */}
         <MediaGrid image={issue.image} video={issue.video} />
@@ -514,6 +527,13 @@ function getTimeAgo(dateStr) {
   if (days  > 0) return `${days} day${days  > 1 ? 's' : ''} ago`;
   if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
   return `${mins} minute${mins !== 1 ? 's' : ''} ago`;
+}
+
+function truncateWords(text, limit = 150) {
+  if (!text) return { display: '', truncated: false };
+  const words = text.trim().split(/\s+/);
+  if (words.length <= limit) return { display: text, truncated: false };
+  return { display: words.slice(0, limit).join(' ') + '…', truncated: true };
 }
 
 /* ─── Main Component ─────────────────────────────────────── */

@@ -205,6 +205,7 @@ class IssueListSerializer(serializers.ModelSerializer):
             'author_name', 'author_profile_picture',
             'status', 'vote_score', 'comment_count', 'user_vote',
             'image',
+            'description',
             'created_at',
         ]
 
