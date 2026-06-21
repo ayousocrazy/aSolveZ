@@ -384,6 +384,12 @@ textarea:focus-visible {
   gap: 16px;
 }
 
+.navbar-logo {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+}
+
 .seal {
   width: 60px;
   height: 60px;
@@ -699,4 +705,66 @@ textarea:focus-visible {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+
+.wc-page {
+  --wc-indigo: #0B2D6B;
+  --wc-crimson: #C8102E;
+  --wc-gold: #B98A2E;
+  --wc-ink: #1A2233;
+  --wc-bg: #F0F2F7;
+  --wc-line: #DDE2EC;
+  --wc-surface: #FFFFFF;
+}
+
+.wc-hero { position: relative; overflow: hidden; }
+.wc-ridge { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 90px; fill: var(--wc-bg); opacity: 0.55; z-index: 0; }
+.wc-flag-rule { height: 4px; width: 64px; margin-bottom: 20px; border-radius: 2px; background: linear-gradient(90deg, var(--wc-crimson) 0 50%, var(--wc-indigo) 50% 100%); }
+
+.wc-header { position: relative; z-index: 1; }
+.wc-eyebrow { font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: var(--wc-indigo); margin: 0 0 10px; font-weight: 600; }
+.wc-title { font-family: 'IBM Plex Serif', Georgia, serif; font-size: 42px; font-weight: 600; color: var(--wc-ink); margin: 0 0 14px; line-height: 1.1; }
+.wc-subtitle { font-family: 'IBM Plex Sans', sans-serif; font-size: 16px; line-height: 1.6; color: #4B5468; max-width: 560px; }
+
+.wc-actions-row { position: relative; z-index: 1; margin-top: 28px; }
+.wc-cta { display: inline-flex; align-items: center; gap: 8px; padding: 12px 22px; border-radius: 10px; font-weight: 600; font-size: 15px; text-decoration: none; transition: transform .15s ease, box-shadow .15s ease; }
+.wc-cta--primary { background: var(--wc-crimson); color: #fff; box-shadow: 0 4px 14px rgba(200,16,46,0.25); }
+.wc-cta--primary:hover { transform: translateY(-1px); box-shadow: 0 6px 18px rgba(200,16,46,0.32); }
+.wc-cta--outline { background: transparent; color: var(--wc-indigo); border: 1.5px solid var(--wc-indigo); }
+.wc-cta--outline:hover { background: rgba(11,45,107,0.06); }
+.wc-icon svg { width: 18px; height: 18px; display: block; }
+
+.wc-steps { display: grid; grid-template-columns: repeat(3,1fr); gap: 20px; margin-top: 40px; position: relative; z-index: 1; }
+.wc-step-n { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: var(--wc-crimson); font-weight: 600; }
+.wc-step-title { font-family: 'IBM Plex Serif', serif; font-size: 17px; font-weight: 600; color: var(--wc-ink); margin: 6px 0 6px; }
+.wc-step-text { font-size: 14px; color: #5B6478; line-height: 1.5; margin: 0; }
+
+.wc-values { display: flex; flex-wrap: wrap; gap: 10px; list-style: none; padding: 0; margin: 28px 0 0; position: relative; z-index: 1; }
+.wc-values li { font-size: 13px; font-weight: 600; color: var(--wc-indigo); background: rgba(11,45,107,0.07); padding: 6px 12px; border-radius: 999px; }
+
+.wc-signed-in { margin-bottom: 18px; position: relative; z-index: 1; }
+.wc-badge { display: inline-block; font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.08em; font-weight: 700; padding: 4px 10px; border-radius: 6px; margin-bottom: 8px; }
+.wc-badge--admin { background: rgba(185,138,46,0.12); color: var(--wc-gold); }
+
+.wc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px,1fr)); gap: 14px; position: relative; z-index: 1; }
+.wc-card { display: flex; flex-direction: column; gap: 8px; padding: 18px; border: 1px solid var(--wc-line); border-radius: 12px; text-decoration: none; color: var(--wc-ink); background: var(--wc-surface); transition: transform .15s ease, border-color .15s ease, box-shadow .15s ease; }
+.wc-card:hover { transform: translateY(-2px); border-color: var(--wc-indigo); box-shadow: 0 8px 20px rgba(11,45,107,0.1); }
+.wc-card-icon { color: var(--wc-indigo); }
+.wc-card-icon svg { width: 22px; height: 22px; }
+.wc-card--featured { background: linear-gradient(160deg, rgba(200,16,46,0.06), rgba(255,255,255,0)); border-color: rgba(200,16,46,0.35); }
+.wc-card--featured .wc-card-icon { color: var(--wc-crimson); }
+.wc-card-title { font-weight: 700; font-size: 15px; }
+.wc-card-desc { font-size: 13px; color: #646E80; line-height: 1.4; }
+
+a.wc-cta:focus-visible, .wc-card:focus-visible { outline: 3px solid var(--wc-indigo); outline-offset: 2px; }
+
+@media (max-width: 640px) {
+  .wc-steps { grid-template-columns: 1fr; }
+  .wc-title { font-size: 32px; }
+  .wc-hero { padding: 32px 22px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wc-cta, .wc-card { transition: none; }
 }
